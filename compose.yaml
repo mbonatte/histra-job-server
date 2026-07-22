@@ -1,0 +1,45 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-histra}
+      POSTGRES_USER: ${POSTGRES_USER:-histra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-histra} -d ${POSTGRES_DB:-histra}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  api:
+    image: ${HISTRA_SERVER_IMAGE:-histra-job-server:local}
+    build:
+      context: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-histra}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-histra}
+      STORAGE_ROOT: /data
+      LEASE_SECONDS: ${LEASE_SECONDS:-300}
+      LEASE_REAPER_INTERVAL_SECONDS: ${LEASE_REAPER_INTERVAL_SECONDS:-30}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      SQL_ECHO: ${SQL_ECHO:-false}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      - artifact_data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+
+volumes:
+  postgres_data:
+  artifact_data:
