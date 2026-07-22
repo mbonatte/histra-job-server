@@ -1,4 +1,4 @@
-# Client network contract for server 0.1.0
+# Client network contract for server 0.1.1
 
 This document defines the HTTP behaviour that the future client adapter should implement around `histra_runner.JobRunner`.
 

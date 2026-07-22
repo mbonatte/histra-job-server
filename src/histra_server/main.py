@@ -61,7 +61,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=resolved_settings.app_version,
         description=(
             "Queue, lease, distribute and collect HiStrA numerical-analysis jobs. "
-            "Authentication is intentionally not implemented in version 0.1.0."
+            "Authentication is intentionally not implemented in version 0.1.1."
         ),
         lifespan=lifespan,
     )
