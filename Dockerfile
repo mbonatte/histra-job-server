@@ -12,7 +12,7 @@ RUN groupadd --system histra \
 COPY pyproject.toml README.md alembic.ini ./
 COPY src ./src
 COPY migrations ./migrations
-COPY docker/entrypoint.sh ./docker/entrypoint.sh
+COPY --chmod=0755 docker/entrypoint.sh ./docker/entrypoint.sh
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install . \
