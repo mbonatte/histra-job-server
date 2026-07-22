@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2026-07-22
+
+- Fix the GitHub Actions validation error caused by using `runner.temp` in job-level `env`.
+- Set `STORAGE_ROOT` through `GITHUB_ENV` in an execution step, where `runner.temp` is available.
+- Synchronize the application version reported by FastAPI with the package version.
+
 ## 0.1.2 - 2026-07-22
 
 - Replaced the separate CI and release workflows with one CI/CD pipeline.
