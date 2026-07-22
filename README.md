@@ -2,7 +2,7 @@
 
 A containerised FastAPI and PostgreSQL service for distributing HiStrA analyses to trusted worker computers.
 
-Version `0.1.1` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
+Version `0.1.2` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ The package is compatible with the local runner contract from `histra-job-runner
 
 ## Important security state
 
-There is **no application authentication in version 0.1.1**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
+There is **no application authentication in version 0.1.2**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
 
 ## Quick start
 
@@ -233,10 +233,13 @@ Removing the API image does not remove either volume. Do not run `docker compose
 
 ## Build and publish with GitHub
 
-The repository contains two workflows:
+The repository contains one `.github/workflows/ci-cd.yml` workflow with three dependent jobs:
 
-- `CI`: lint, test, and build the container on pushes and pull requests.
-- `Publish container image`: publish to GitHub Container Registry when a GitHub Release is published or the workflow is started manually.
+- `Test and lint`: formatting, Ruff, pytest, Alembic migrations, and a PostgreSQL API smoke test.
+- `Build and scan image`: Buildx verification build followed by a Trivy HIGH/CRITICAL scan.
+- `Publish image to GHCR`: logs in with `GITHUB_TOKEN` and pushes the verified Dockerfile build.
+
+The workflow runs on pull requests to `main`, pushes to `main`, semantic version tags matching `v*.*.*`, and manual dispatch. Pull requests test and scan without publishing. Pushes to `main` publish `latest` and a `sha-*` tag. A tag such as `v0.1.2` additionally publishes `0.1.2`, `0.1`, and `0`.
 
 The published image name is:
 
@@ -244,7 +247,7 @@ The published image name is:
 ghcr.io/OWNER/REPOSITORY
 ```
 
-For example, after creating release `v0.1.1`, the workflow publishes semver, SHA, and `latest` tags.
+For example, pushing tag `v0.1.2` publishes `0.1.2`, `0.1`, `0`, and a `sha-*` tag. The `latest` tag is published by pushes or manual runs on the default branch.
 
 On the VPS, set this in `.env`:
 
