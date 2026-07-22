@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4 - 2026-07-22
+
+- Applied Ruff formatting to all files reported by CI.
+- Kept the CI formatting check unchanged so future unformatted commits fail before image publication.
+
 ## 0.1.3 - 2026-07-22
 
 - Fix the GitHub Actions validation error caused by using `runner.temp` in job-level `env`.

@@ -139,9 +139,7 @@ class Storage:
             model_filename=model_filename,
         )
 
-    def build_attempt_package(
-        self, job_id: str, attempt_id: str, model_filename: str
-    ) -> SavedFile:
+    def build_attempt_package(self, job_id: str, attempt_id: str, model_filename: str) -> SavedFile:
         job_dir = self.job_dir(job_id)
         attempt_dir = self.attempt_dir(job_id, attempt_id)
         return self._build_zip(

@@ -208,9 +208,7 @@ def test_expired_lease_requeues_job(client):
 
     assert create_job(client).status_code == 201
     first_worker = register_worker(client, "worker-one")
-    first_claim = client.post(
-        "/api/v1/jobs/claim", json={"worker_id": first_worker["id"]}
-    ).json()
+    first_claim = client.post("/api/v1/jobs/claim", json={"worker_id": first_worker["id"]}).json()
 
     with client.app.state.session_factory() as session:
         attempt = session.get(JobAttempt, first_claim["attempt_id"])
@@ -219,7 +217,8 @@ def test_expired_lease_requeues_job(client):
 
     second_worker = register_worker(client, "worker-two")
     second_claim_response = client.post(
-        "/api/v1/jobs/claim", json={"worker_id": second_worker["id"]}
+        "/api/v1/jobs/claim",
+        json={"worker_id": second_worker["id"]},
     )
     assert second_claim_response.status_code == 200, second_claim_response.text
     second_claim = second_claim_response.json()

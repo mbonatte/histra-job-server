@@ -33,7 +33,6 @@ class JobDefinition(BaseModel):
     analyses: list[dict[str, Any]] = Field(min_length=1)
     metadata: dict[str, Any] = Field(default_factory=dict)
 
-
     @field_validator("analyses")
     @classmethod
     def validate_analyses(cls, value: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -150,7 +149,12 @@ class ClaimResponse(BaseModel):
 
 
 AttemptActiveStatus = Literal[
-    "leased", "downloading", "running", "extracting", "uploading", "validating"
+    "leased",
+    "downloading",
+    "running",
+    "extracting",
+    "uploading",
+    "validating",
 ]
 
 

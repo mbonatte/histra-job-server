@@ -92,9 +92,7 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(op.f("ix_job_attempts_status"), "job_attempts", ["status"], unique=False)
-    op.create_index(
-        op.f("ix_job_attempts_worker_id"), "job_attempts", ["worker_id"], unique=False
-    )
+    op.create_index(op.f("ix_job_attempts_worker_id"), "job_attempts", ["worker_id"], unique=False)
 
     op.create_table(
         "artifacts",
