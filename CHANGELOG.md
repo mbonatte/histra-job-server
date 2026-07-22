@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.5 - 2026-07-23
+
+- Restore Ruff-formatted multiline layout in `src/histra_server/api/jobs.py`.
+- Pin the development formatter/linter to Ruff 0.15.22 so local and CI formatting are reproducible.
+
 ## 0.1.4 - 2026-07-22
 
 - Applied Ruff formatting to all files reported by CI.

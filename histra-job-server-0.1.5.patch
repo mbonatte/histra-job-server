@@ -1,0 +1,114 @@
+--- a/.github/workflows/ci-cd.yml
++++ b/.github/workflows/ci-cd.yml
+@@ -63,7 +63,9 @@
+         run: python -m pip install --upgrade pip==25.1.1 && python -m pip install -e ".[dev]"
+ 
+       - name: Check formatting
+-        run: python -m ruff format --check src tests scripts migrations
++        run: |
++          python -m ruff version
++          python -m ruff format --check src tests scripts migrations
+ 
+       - name: Lint
+         run: python -m ruff check .
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,10 @@
+ # Changelog
+ 
++## 0.1.5 - 2026-07-23
++
++- Restore Ruff-formatted multiline layout in `src/histra_server/api/jobs.py`.
++- Pin the development formatter/linter to Ruff 0.15.22 so local and CI formatting are reproducible.
++
+ ## 0.1.4 - 2026-07-22
+ 
+ - Applied Ruff formatting to all files reported by CI.
+--- a/README.md
++++ b/README.md
+@@ -2,7 +2,7 @@
+ 
+ A containerised FastAPI and PostgreSQL service for distributing HiStrA analyses to trusted worker computers.
+ 
+-Version `0.1.4` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
++Version `0.1.5` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
+ 
+ ## Architecture
+ 
+@@ -36,7 +36,7 @@
+ 
+ ## Important security state
+ 
+-There is **no application authentication in version 0.1.4**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
++There is **no application authentication in version 0.1.5**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
+ 
+ ## Quick start
+ 
+@@ -247,7 +247,7 @@
+ ghcr.io/OWNER/REPOSITORY
+ ```
+ 
+-For example, pushing tag `v0.1.4` publishes `0.1.4`, `0.1`, `0`, and a `sha-*` tag. The `latest` tag is published by pushes or manual runs on the default branch.
++For example, pushing tag `v0.1.5` publishes `0.1.5`, `0.1`, `0`, and a `sha-*` tag. The `latest` tag is published by pushes or manual runs on the default branch.
+ 
+ On the VPS, set this in `.env`:
+ 
+--- a/pyproject.toml
++++ b/pyproject.toml
+@@ -4,7 +4,7 @@
+ 
+ [project]
+ name = "histra-job-server"
+-version = "0.1.4"
++version = "0.1.5"
+ description = "Containerised FastAPI job server for distributed HiStrA analyses"
+ readme = "README.md"
+ requires-python = ">=3.12"
+@@ -21,7 +21,7 @@
+ dev = [
+   "httpx>=0.28,<1",
+   "pytest>=9,<10",
+-  "ruff>=0.12,<1",
++  "ruff==0.15.22",
+ ]
+ 
+ [tool.setuptools.packages.find]
+@@ -32,6 +32,7 @@
+ addopts = "-q"
+ 
+ [tool.ruff]
++required-version = "==0.15.22"
+ target-version = "py312"
+ line-length = 100
+ 
+--- a/src/histra_server/__init__.py
++++ b/src/histra_server/__init__.py
+@@ -1,3 +1,3 @@
+ """HiStrA job server package."""
+ 
+-__version__ = "0.1.4"
++__version__ = "0.1.5"
+--- a/src/histra_server/config.py
++++ b/src/histra_server/config.py
+@@ -16,7 +16,7 @@
+     )
+ 
+     app_name: str = "HiStrA Job Server"
+-    app_version: str = "0.1.4"
++    app_version: str = "0.1.5"
+     database_url: str = "sqlite:///./histra-server.sqlite3"
+     storage_root: Path = Path("./data")
+     lease_seconds: int = Field(default=300, ge=30, le=86_400)
+--- a/src/histra_server/api/jobs.py
++++ b/src/histra_server/api/jobs.py
+@@ -193,7 +193,9 @@
+ 
+ @router.get("/jobs/{job_id}", response_model=JobDetailResponse)
+ def get_job(job_id: str, session: Session = Depends(get_session)):
+-    job = session.scalar(select(Job).where(Job.id == job_id).options(selectinload(Job.attempts)))
++    job = session.scalar(
++        select(Job).where(Job.id == job_id).options(selectinload(Job.attempts))
++    )
+     if job is None:
+         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+     return job

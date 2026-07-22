@@ -2,7 +2,7 @@
 
 A containerised FastAPI and PostgreSQL service for distributing HiStrA analyses to trusted worker computers.
 
-Version `0.1.4` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
+Version `0.1.5` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
 
 ## Architecture
 
@@ -36,7 +36,7 @@ The package is compatible with the local runner contract from `histra-job-runner
 
 ## Important security state
 
-There is **no application authentication in version 0.1.4**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
+There is **no application authentication in version 0.1.5**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
 
 ## Quick start
 
@@ -247,7 +247,7 @@ The published image name is:
 ghcr.io/OWNER/REPOSITORY
 ```
 
-For example, pushing tag `v0.1.4` publishes `0.1.4`, `0.1`, `0`, and a `sha-*` tag. The `latest` tag is published by pushes or manual runs on the default branch.
+For example, pushing tag `v0.1.5` publishes `0.1.5`, `0.1`, `0`, and a `sha-*` tag. The `latest` tag is published by pushes or manual runs on the default branch.
 
 On the VPS, set this in `.env`:
 

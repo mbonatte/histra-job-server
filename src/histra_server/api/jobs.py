@@ -193,7 +193,9 @@ def list_jobs(
 
 @router.get("/jobs/{job_id}", response_model=JobDetailResponse)
 def get_job(job_id: str, session: Session = Depends(get_session)):
-    job = session.scalar(select(Job).where(Job.id == job_id).options(selectinload(Job.attempts)))
+    job = session.scalar(
+        select(Job).where(Job.id == job_id).options(selectinload(Job.attempts))
+    )
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     return job

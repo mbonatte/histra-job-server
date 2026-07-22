@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "HiStrA Job Server"
-    app_version: str = "0.1.4"
+    app_version: str = "0.1.5"
     database_url: str = "sqlite:///./histra-server.sqlite3"
     storage_root: Path = Path("./data")
     lease_seconds: int = Field(default=300, ge=30, le=86_400)
