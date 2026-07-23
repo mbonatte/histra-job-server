@@ -87,6 +87,14 @@ def main() -> None:
             )
             completed.raise_for_status()
             assert completed.json()["status"] == "completed"
+
+            dashboard = client.get("/api/v1/dashboard/summary")
+            dashboard.raise_for_status()
+            assert dashboard.json()["jobs"]["total"] == 1
+
+            dashboard_page = client.get("/dashboard/")
+            dashboard_page.raise_for_status()
+            assert "HiStrA Analysis Dashboard" in dashboard_page.text
     print("PostgreSQL API smoke test passed")
 
 

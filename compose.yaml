@@ -31,8 +31,15 @@ services:
       LEASE_REAPER_INTERVAL_SECONDS: ${LEASE_REAPER_INTERVAL_SECONDS:-30}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       SQL_ECHO: ${SQL_ECHO:-false}
-    ports:
-      - "${API_PORT:-8000}:8000"
+      DASHBOARD_ENABLED: ${DASHBOARD_ENABLED:-true}
+      DASHBOARD_WORKER_ONLINE_SECONDS: ${DASHBOARD_WORKER_ONLINE_SECONDS:-300}
+    expose:
+      - "8000"
+    networks:
+      default:
+      proxy:
+        aliases:
+          - histra-api
     volumes:
       - artifact_data:/data
     depends_on:
@@ -43,3 +50,8 @@ services:
 volumes:
   postgres_data:
   artifact_data:
+
+networks:
+  default:
+  proxy:
+    external: true

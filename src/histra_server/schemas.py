@@ -149,12 +149,7 @@ class ClaimResponse(BaseModel):
 
 
 AttemptActiveStatus = Literal[
-    "leased",
-    "downloading",
-    "running",
-    "extracting",
-    "uploading",
-    "validating",
+    "leased", "downloading", "running", "extracting", "uploading", "validating"
 ]
 
 

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "histra-job-server"
-version = "0.1.5"
+version = "0.2.0"
 description = "Containerised FastAPI job server for distributed HiStrA analyses"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -21,7 +21,7 @@ dependencies = [
 dev = [
   "httpx>=0.28,<1",
   "pytest>=9,<10",
-  "ruff==0.15.22",
+  "ruff>=0.12,<1",
 ]
 
 [tool.setuptools.packages.find]
@@ -32,10 +32,12 @@ testpaths = ["tests"]
 addopts = "-q"
 
 [tool.ruff]
-required-version = "==0.15.22"
 target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 ignore = ["B008", "UP040"]
+
+[tool.setuptools.package-data]
+"histra_server" = ["static/*.html", "static/dashboard/*.css", "static/dashboard/*.js"]

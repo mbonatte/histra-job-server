@@ -29,7 +29,7 @@ def create_job(client, job_id: str = "bridge-001"):
 def register_worker(client, name: str = "test-worker", capacity: int = 1):
     response = client.post(
         "/api/v1/workers/register",
-        json={"name": name, "max_parallel_jobs": capacity, "worker_version": "0.2.0"},
+        json={"name": name, "max_parallel_jobs": capacity, "worker_version": "0.3.0"},
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -217,8 +217,7 @@ def test_expired_lease_requeues_job(client):
 
     second_worker = register_worker(client, "worker-two")
     second_claim_response = client.post(
-        "/api/v1/jobs/claim",
-        json={"worker_id": second_worker["id"]},
+        "/api/v1/jobs/claim", json={"worker_id": second_worker["id"]}
     )
     assert second_claim_response.status_code == 200, second_claim_response.text
     second_claim = second_claim_response.json()

@@ -24,8 +24,7 @@ jobs:
     name: Test and lint
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    permissions:
-      contents: read
+
     services:
       postgres:
         image: postgres:17-alpine
@@ -40,8 +39,10 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+
     env:
       DATABASE_URL: postgresql+psycopg://histra:histra-ci-password@127.0.0.1:5432/histra
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -60,7 +61,9 @@ jobs:
           cache: pip
 
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip==25.1.1 && python -m pip install -e ".[dev]"
+        run: |
+          python -m pip install --upgrade pip==25.1.1
+          python -m pip install -e ".[dev]"
 
       - name: Check formatting
         run: |
@@ -87,6 +90,7 @@ jobs:
     permissions:
       contents: read
       security-events: write
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -103,11 +107,11 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
           labels: |
             org.opencontainers.image.title=HiStrA Job Server
             org.opencontainers.image.description=FastAPI job server for distributed HiStrA analyses
@@ -148,13 +152,14 @@ jobs:
 
   publish:
     name: Publish image to GHCR
-    if: github.event_name != 'pull_request'
-    needs: [test, image]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: image
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
       contents: read
       packages: write
+
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -171,11 +176,11 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           flavor: latest=false
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-,format=short
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}
+            type=sha,prefix=sha-,format=short
+            type=raw,value=latest
           labels: |
             org.opencontainers.image.title=HiStrA Job Server
             org.opencontainers.image.description=FastAPI job server for distributed HiStrA analyses

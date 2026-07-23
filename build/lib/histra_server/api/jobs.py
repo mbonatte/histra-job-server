@@ -193,9 +193,7 @@ def list_jobs(
 
 @router.get("/jobs/{job_id}", response_model=JobDetailResponse)
 def get_job(job_id: str, session: Session = Depends(get_session)):
-    job = session.scalar(
-        select(Job).where(Job.id == job_id).options(selectinload(Job.attempts))
-    )
+    job = session.scalar(select(Job).where(Job.id == job_id).options(selectinload(Job.attempts)))
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
     return job
@@ -256,9 +254,7 @@ def claim_job(payload: ClaimRequest, request: Request, session: Session = Depend
         attempt.failure_reason = f"Could not build worker package: {exc}"
         job.current_attempt_id = None
         job.error_message = attempt.failure_reason
-        job.status = (
-            JobStatus.QUEUED if job.attempt_count < job.max_attempts else JobStatus.FAILED
-        )
+        job.status = JobStatus.QUEUED if job.attempt_count < job.max_attempts else JobStatus.FAILED
         session.commit()
         raise HTTPException(status_code=500, detail="Could not build worker package") from exc
 
@@ -345,9 +341,7 @@ async def upload_results(
     )
     run_data = await _read_json_upload(run_file, settings.max_result_file_bytes, "run.json")
     validation_data = (
-        await _read_json_upload(
-            validation_file, settings.max_result_file_bytes, "validation.json"
-        )
+        await _read_json_upload(validation_file, settings.max_result_file_bytes, "validation.json")
         if validation_file is not None
         else None
     )

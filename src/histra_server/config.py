@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     )
 
     app_name: str = "HiStrA Job Server"
-    app_version: str = "0.1.5"
+    app_version: str = "0.2.0"
     database_url: str = "sqlite:///./histra-server.sqlite3"
     storage_root: Path = Path("./data")
     lease_seconds: int = Field(default=300, ge=30, le=86_400)
@@ -27,6 +27,8 @@ class Settings(BaseSettings):
     max_log_file_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
     sql_echo: bool = False
     log_level: str = "INFO"
+    dashboard_enabled: bool = True
+    dashboard_worker_online_seconds: int = Field(default=300, ge=30, le=86_400)
 
 
 @lru_cache

@@ -4,8 +4,11 @@ import asyncio
 import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from .api.router import router
 from .config import Settings, get_settings
@@ -61,11 +64,21 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=resolved_settings.app_version,
         description=(
             "Queue, lease, distribute and collect HiStrA numerical-analysis jobs. "
-            "Authentication is intentionally not implemented in version 0.1.1."
+            "Version 0.2.0 includes an integrated analytical dashboard. "
+            "Authentication is not implemented yet."
         ),
         lifespan=lifespan,
     )
     app.include_router(router)
+
+    if resolved_settings.dashboard_enabled:
+        static_root = Path(__file__).resolve().parent / "static"
+        app.mount("/dashboard", StaticFiles(directory=static_root, html=True), name="dashboard")
+
+        @app.get("/", include_in_schema=False)
+        def dashboard_redirect():
+            return RedirectResponse(url="/dashboard/")
+
     return app
 
 

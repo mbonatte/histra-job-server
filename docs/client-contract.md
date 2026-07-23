@@ -1,4 +1,4 @@
-# Client network contract for server 0.1.1
+# Client network contract for server 0.2.0
 
 This document defines the HTTP behaviour that the future client adapter should implement around `histra_runner.JobRunner`.
 
@@ -13,7 +13,7 @@ Content-Type: application/json
 {
   "name": "mauricio-desktop",
   "max_parallel_jobs": 4,
-  "worker_version": "0.2.0",
+  "worker_version": "0.3.0",
   "solver_version": "2024.1.1",
   "metadata": {}
 }

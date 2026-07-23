@@ -1,44 +1,79 @@
 # HiStrA Job Server
 
-A containerised FastAPI and PostgreSQL service for distributing HiStrA analyses to trusted worker computers.
+Containerised FastAPI, PostgreSQL and web-dashboard service for distributing and analysing HiStrA numerical jobs on trusted worker computers.
 
-Version `0.1.5` implements the complete server-side workflow without scenario generation and without authentication. A job is inserted by uploading an existing `job.json` and `.hrx`; a worker registers, claims the job, downloads a ZIP package, sends heartbeats, and uploads the runner outputs.
+Version `0.2.0` keeps the worker protocol from `0.1.0` and adds an integrated analytical dashboard. It does not change the database schema, so an existing `0.1.0` deployment can be upgraded by replacing the API image.
 
 ## Architecture
 
 ```text
 GitHub release
-      │ builds/publishes
+      │ builds and publishes
       ▼
 GHCR image ───────────────► VPS: FastAPI container
                                   │
                        ┌──────────┴──────────┐
                        ▼                     ▼
                 PostgreSQL container   artifact volume
-                jobs/workers/attempts  HRX/ZIP/results/logs
+                jobs/workers/results   HRX/ZIP/results/logs
+                       ▲
+                       │ database queries
+                       ▼
+                integrated dashboard
 ```
 
-FastAPI and PostgreSQL intentionally run in separate containers under Docker Compose. This keeps database persistence and application updates independent.
+FastAPI serves both the worker/admin API and the dashboard. PostgreSQL and artifact storage remain separate persistent Docker volumes.
 
-## Implemented workflow
+## Dashboard
+
+Open:
+
+```text
+https://YOUR-SERVER/dashboard/
+```
+
+The root URL redirects to the dashboard. API documentation remains at `/docs`.
+
+The dashboard includes:
+
+- job, status, completion-rate, duration and throughput summaries;
+- queue and job filtering by status, scenario, worker, dates and text search;
+- sortable and paginated job tables;
+- full job detail with attempts, artifacts, validation and raw JSON;
+- reaction histories (`R1`, `R2`, `R3`) against analysis step;
+- displacement histories (`Ux`, `Uy`, `Uz`) by model point;
+- modal contribution plots;
+- scour/interface mutation evidence for every analysis;
+- run provenance, solver-stage durations and result-database size;
+- worker availability, capacity, versions, success rate and execution duration;
+- descriptive statistics across jobs: count, mean, median, standard deviation, quartiles, percentiles and coefficient of variation;
+- response statistics for final, peak absolute, minimum and maximum reactions/displacements;
+- grouping by scenario, worker, analysis, model point or numeric metadata field;
+- histogram and scatter plots;
+- CSV export of the selected statistical observations.
+
+All dashboard data is read from the PostgreSQL records already populated by the worker workflow. The browser does not read artifact files directly.
+
+## Worker workflow
 
 1. Upload `job.json` and the matching HRX model.
-2. Store the job in PostgreSQL and the input files in persistent artifact storage.
-3. Register a worker with a configurable local capacity.
+2. Store the job in PostgreSQL and the files in persistent artifact storage.
+3. Register a worker with a configurable capacity.
 4. Atomically lease the next queued job.
-5. Build and download an attempt-specific `package.zip`, containing the original names `job.json` and `model.hrx`. The server injects the server `attempt_id` and HRX SHA-256 into the attempt manifest.
-6. Extend the lease while the worker reports `downloading`, `running`, `extracting`, `uploading`, or `validating`.
-7. Upload `results.json`, `run.json`, optional `validation.json`, and logs.
-8. Store the JSON in PostgreSQL and preserve the original files in artifact storage.
-9. Requeue interrupted jobs after their leases expire, up to `max_attempts`.
+5. Build and download an attempt-specific package.
+6. Extend the lease through worker heartbeats.
+7. Upload `results.json`, `run.json`, validation evidence and logs.
+8. Store accepted JSON in PostgreSQL and preserve original files in artifact storage.
+9. Requeue interrupted jobs after lease expiry, up to `max_attempts`.
+10. Display accepted data in the dashboard.
 
-The package is compatible with the local runner contract from `histra-job-runner 0.2.0`.
+The protocol is compatible with `histra-job-runner 0.3.0`.
 
-## Important security state
+## Security state
 
-There is **no application authentication in version 0.1.5**. Every endpoint is open to anyone who can reach the API port. Until token authentication is added, restrict access with the VPS firewall or an IP allowlist. Do not expose this version to untrusted internet traffic.
+There is no application authentication in version `0.2.0`. The API and dashboard are visible to anyone who can reach the service. Until authentication is added, restrict access through the reverse proxy, VPS firewall, VPN or an IP allowlist.
 
-## Quick start
+## Start a new deployment
 
 Requirements:
 
@@ -51,22 +86,14 @@ Create the environment file:
 cp .env.example .env
 ```
 
-Change `POSTGRES_PASSWORD`. For this first deployment, use a long URL-safe value containing letters, numbers, hyphens, and underscores. Docker Compose constructs `DATABASE_URL` from the PostgreSQL variables.
-
-Start the stack:
+Set a strong `POSTGRES_PASSWORD`, then start the stack:
 
 ```bash
 docker compose up -d --build
 python scripts/wait_for_api.py http://127.0.0.1:8000/health/ready
 ```
 
-Open the interactive API documentation:
-
-```text
-http://SERVER-IP:8000/docs
-```
-
-Check the services:
+Useful checks:
 
 ```bash
 docker compose ps
@@ -75,9 +102,45 @@ docker compose logs -f api
 
 Database migrations run automatically whenever the API container starts.
 
+## Upgrade an existing 0.1.0 VPS deployment
+
+No database migration is required beyond the existing startup migration command.
+
+After publishing the `0.2.0` image to GHCR:
+
+```bash
+./scripts/deploy.sh
+```
+
+Or manually:
+
+```bash
+docker compose pull api
+docker compose up -d --no-deps api
+```
+
+Then verify:
+
+```bash
+curl https://YOUR-SERVER/health/ready
+```
+
+Open `https://YOUR-SERVER/dashboard/`. Existing PostgreSQL and artifact volumes are retained. Do not use `docker compose down -v` unless all stored data should be deleted.
+
+## Environment variables
+
+The existing settings are unchanged. Dashboard-specific settings are:
+
+```dotenv
+DASHBOARD_ENABLED=true
+DASHBOARD_WORKER_ONLINE_SECONDS=300
+```
+
+`DASHBOARD_WORKER_ONLINE_SECONDS` controls how recently a worker must have sent a heartbeat to appear online.
+
 ## Insert a job manually
 
-The server does not generate scenarios yet. Upload the runner-compatible files directly:
+The server does not generate scenarios yet. Upload runner-compatible files directly:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/api/v1/jobs \
@@ -87,95 +150,37 @@ curl -X POST http://127.0.0.1:8000/api/v1/jobs \
   -F 'max_attempts=3'
 ```
 
-The uploaded HRX filename must match `model.path` in `job.json`. The supplied example expects `model.hrx`.
+The HRX filename must match `model.path` in `job.json`. Duplicate job IDs are rejected.
 
-Job identifiers are taken from `job.json`. Duplicate IDs are rejected rather than overwritten.
+## Dashboard API
 
-## Simulate the future worker workflow
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/v1/dashboard/summary` | Overview KPIs, status totals and throughput |
+| `GET` | `/api/v1/dashboard/catalog` | Available filters, analyses, components, points and metadata fields |
+| `GET` | `/api/v1/dashboard/jobs` | Filtered, sortable dashboard job rows |
+| `GET` | `/api/v1/dashboard/jobs/{job_id}` | Job, selected attempt, results, run metadata and artifacts |
+| `GET` | `/api/v1/dashboard/workers` | Worker availability and performance |
+| `GET` | `/api/v1/dashboard/statistics` | Observations, descriptive statistics and grouped summaries |
+| `GET` | `/api/v1/dashboard/statistics.csv` | CSV export using the same statistical filters |
 
-Register a worker:
+Detailed metric definitions and data assumptions are documented in [`docs/dashboard.md`](docs/dashboard.md).
 
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/workers/register \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "name": "mauricio-desktop",
-    "max_parallel_jobs": 4,
-    "worker_version": "0.2.0"
-  }'
+The statistics endpoint supports these metrics:
+
+```text
+duration_seconds
+reaction_final
+reaction_peak_abs
+reaction_minimum
+reaction_maximum
+displacement_final
+displacement_peak_abs
+displacement_minimum
+displacement_maximum
 ```
 
-Use the returned worker `id` to claim a job:
-
-```bash
-curl -X POST http://127.0.0.1:8000/api/v1/jobs/claim \
-  -H 'Content-Type: application/json' \
-  -d '{"worker_id":"WORKER_ID"}'
-```
-
-A successful response contains:
-
-```json
-{
-  "job_id": "bridge-001-scour-sequence",
-  "attempt_id": "...",
-  "lease_expires_at": "...",
-  "package_url": "/api/v1/jobs/.../attempts/.../package",
-  "heartbeat_url": "/api/v1/jobs/.../attempts/.../heartbeat",
-  "results_url": "/api/v1/jobs/.../attempts/.../results",
-  "failure_url": "/api/v1/jobs/.../attempts/.../failed"
-}
-```
-
-When no job or no local worker slot is available, the claim endpoint returns HTTP `204 No Content`.
-
-Download the package:
-
-```bash
-curl -o job-package.zip \
-  http://127.0.0.1:8000/api/v1/jobs/JOB_ID/attempts/ATTEMPT_ID/package
-```
-
-Send a heartbeat:
-
-```bash
-curl -X POST \
-  http://127.0.0.1:8000/api/v1/jobs/JOB_ID/attempts/ATTEMPT_ID/heartbeat \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "status": "running",
-    "progress": {"analysis": "LiveLoad_1"}
-  }'
-```
-
-The runner outputs must contain the same `job_id` and server `attempt_id`; `run.json.status` must be `completed`.
-
-Upload a completed runner attempt:
-
-```bash
-curl -X POST \
-  http://127.0.0.1:8000/api/v1/jobs/JOB_ID/attempts/ATTEMPT_ID/results \
-  -F 'results_file=@results.json;type=application/json' \
-  -F 'run_file=@run.json;type=application/json' \
-  -F 'validation_file=@validation.json;type=application/json' \
-  -F 'solver_log=@solver.log;type=text/plain' \
-  -F 'extractor_log=@extractor.log;type=text/plain'
-```
-
-Report a failure:
-
-```bash
-curl -X POST \
-  http://127.0.0.1:8000/api/v1/jobs/JOB_ID/attempts/ATTEMPT_ID/failed \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "reason": "Solver process exited with code 1",
-    "retryable": true,
-    "exit_code": 1
-  }'
-```
-
-## Main endpoints
+## Core job API
 
 | Method | Endpoint | Purpose |
 |---|---|---|
@@ -186,103 +191,57 @@ curl -X POST \
 | `GET` | `/api/v1/jobs/{job_id}` | Job and attempt details |
 | `POST` | `/api/v1/jobs/{job_id}/retry` | Requeue a failed/cancelled job |
 | `POST` | `/api/v1/jobs/{job_id}/cancel` | Cancel a job |
-| `GET` | `/api/v1/jobs/{job_id}/results` | Return the accepted result JSON |
-| `GET` | `/api/v1/jobs/{job_id}/artifacts` | List stored input/output artifacts |
+| `GET` | `/api/v1/jobs/{job_id}/results` | Return accepted result JSON |
+| `GET` | `/api/v1/jobs/{job_id}/artifacts` | List stored artifacts |
 | `POST` | `/api/v1/workers/register` | Register or refresh a worker |
 | `POST` | `/api/v1/workers/{worker_id}/enable` | Enable a worker |
-| `POST` | `/api/v1/workers/{worker_id}/disable` | Stop new claims for a worker |
+| `POST` | `/api/v1/workers/{worker_id}/disable` | Stop new claims |
 | `POST` | `/api/v1/jobs/claim` | Atomically lease a job |
 | `GET` | `/api/v1/jobs/{job_id}/attempts/{attempt_id}/package` | Download worker package |
 | `POST` | `/api/v1/jobs/{job_id}/attempts/{attempt_id}/heartbeat` | Extend lease and report stage |
 | `POST` | `/api/v1/jobs/{job_id}/attempts/{attempt_id}/results` | Upload accepted outputs |
 | `POST` | `/api/v1/jobs/{job_id}/attempts/{attempt_id}/failed` | Report a failed attempt |
 
-The complete and always-current request schema is available in `/docs` and `/openapi.json`.
+The complete request schema is available at `/docs` and `/openapi.json`.
 
 ## Persistent data
 
-Docker Compose creates two named volumes:
+Docker Compose creates:
 
 ```text
 postgres_data   PostgreSQL data
 artifact_data   HRX files, packages, result JSON and logs
 ```
 
-Artifact layout:
-
-```text
-/data/jobs/<job_id>/
-├── input/
-│   ├── job.json
-│   ├── model.hrx
-│   └── package.zip
-└── attempts/<attempt_id>/
-    ├── input/
-    │   ├── job.json       # includes server attempt_id and model SHA-256
-    │   └── package.zip
-    ├── results/
-    │   ├── results.json
-    │   ├── run.json
-    │   └── validation.json
-    └── logs/
-        ├── solver.log
-        └── extractor.log
-```
-
-Removing the API image does not remove either volume. Do not run `docker compose down -v` unless you intend to delete all server data.
+Removing or replacing the API image does not remove either volume.
 
 ## Build and publish with GitHub
 
-The repository contains one `.github/workflows/ci-cd.yml` workflow with three dependent jobs:
+The repository contains:
 
-- `Test and lint`: formatting, Ruff, pytest, Alembic migrations, and a PostgreSQL API smoke test.
-- `Build and scan image`: Buildx verification build followed by a Trivy HIGH/CRITICAL scan.
-- `Publish image to GHCR`: logs in with `GITHUB_TOKEN` and pushes the verified Dockerfile build.
+- `CI`: tests, linting and container build;
+- `Publish container image`: GHCR publication on a GitHub Release or manual workflow run.
 
-The workflow runs on pull requests to `main`, pushes to `main`, semantic version tags matching `v*.*.*`, and manual dispatch. Pull requests test and scan without publishing. Pushes to `main` publish `latest` and a `sha-*` tag. A tag such as `v0.1.3` additionally publishes `0.1.3`, `0.1`, and `0`.
-
-The published image name is:
+The published image is:
 
 ```text
 ghcr.io/OWNER/REPOSITORY
 ```
 
-For example, pushing tag `v0.1.5` publishes `0.1.5`, `0.1`, `0`, and a `sha-*` tag. The `latest` tag is published by pushes or manual runs on the default branch.
-
-On the VPS, set this in `.env`:
+Set the VPS `.env` file:
 
 ```dotenv
 HISTRA_SERVER_IMAGE=ghcr.io/OWNER/REPOSITORY:latest
 ```
 
-For a public package:
-
-```bash
-./scripts/deploy.sh
-```
-
-For a private package, log in once before deployment:
-
-```bash
-echo "$GHCR_TOKEN" | docker login ghcr.io -u GITHUB_USERNAME --password-stdin
-./scripts/deploy.sh
-```
-
-The deployment script pulls the new API image and recreates only what changed. PostgreSQL and artifact volumes are retained.
+For a private package, log in to GHCR before running `scripts/deploy.sh`.
 
 ## Development without Docker
-
-Create a virtual environment and install the package:
 
 ```bash
 python -m venv .venv
 . .venv/bin/activate
 python -m pip install -e '.[dev]'
-```
-
-For a quick SQLite development instance:
-
-```bash
 export DATABASE_URL=sqlite:///./histra-server.sqlite3
 export STORAGE_ROOT=./data
 alembic upgrade head
@@ -294,17 +253,13 @@ Run checks:
 ```bash
 ruff check .
 pytest
+node --check src/histra_server/static/dashboard/app.js
 ```
 
-## Decisions intentionally deferred
+## Intentionally deferred
 
 - token authentication and endpoint roles;
-- HTTPS/reverse-proxy configuration;
 - server-side scenario and HRX generation;
-- worker software updates;
-- normalised scientific result tables and data-science exports;
-- dashboard/user interface.
-
-These can be added without replacing the job, attempt, lease, artifact, and worker model implemented here.
-
-The exact adapter workflow for the next client-side step is documented in [`docs/client-contract.md`](docs/client-contract.md).
+- normalised scientific warehouse tables;
+- scheduled reports and alerts;
+- advanced regression, sensitivity and surrogate-model workflows.

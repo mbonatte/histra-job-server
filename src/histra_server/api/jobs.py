@@ -237,9 +237,7 @@ def claim_job(payload: ClaimRequest, request: Request, session: Session = Depend
             filename="job.json",
         )
         attempt_package_saved = storage.build_attempt_package(
-            job.id,
-            attempt.id,
-            job.model_filename,
+            job.id, attempt.id, job.model_filename
         )
         session.add_all(
             [
@@ -339,17 +337,11 @@ async def upload_results(
     storage = _storage(request)
 
     results_data = await _read_json_upload(
-        results_file,
-        settings.max_result_file_bytes,
-        "results.json",
+        results_file, settings.max_result_file_bytes, "results.json"
     )
     run_data = await _read_json_upload(run_file, settings.max_result_file_bytes, "run.json")
     validation_data = (
-        await _read_json_upload(
-            validation_file,
-            settings.max_result_file_bytes,
-            "validation.json",
-        )
+        await _read_json_upload(validation_file, settings.max_result_file_bytes, "validation.json")
         if validation_file is not None
         else None
     )
@@ -519,8 +511,7 @@ def retry_job(
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Job is currently active")
     if job.status == JobStatus.COMPLETED:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Completed jobs are immutable",
+            status_code=status.HTTP_409_CONFLICT, detail="Completed jobs are immutable"
         )
     job.max_attempts = max(job.max_attempts, job.attempt_count + payload.additional_attempts)
     job.status = JobStatus.QUEUED
@@ -591,7 +582,6 @@ def download_artifact(
     path = _storage(request).resolve(artifact.relative_path)
     if not path.is_file():
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Artifact file is missing",
+            status_code=status.HTTP_404_NOT_FOUND, detail="Artifact file is missing"
         )
     return FileResponse(path, media_type=artifact.content_type, filename=artifact.filename)

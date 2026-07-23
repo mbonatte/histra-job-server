@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>HiStrA Analysis Dashboard</title>
+  <link rel="stylesheet" href="/dashboard/dashboard/styles.css">
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <div id="app" class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">H</div>
+        <div>
+          <strong>HiStrA</strong>
+          <span>Analysis dashboard</span>
+        </div>
+      </div>
+      <nav class="nav" aria-label="Dashboard sections">
+        <button class="nav-item active" data-view="overview"><span>Overview</span></button>
+        <button class="nav-item" data-view="jobs"><span>Jobs</span></button>
+        <button class="nav-item" data-view="results"><span>Results explorer</span></button>
+        <button class="nav-item" data-view="statistics"><span>Statistics</span></button>
+        <button class="nav-item" data-view="workers"><span>Workers</span></button>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/docs" target="_blank" rel="noreferrer">API documentation</a>
+        <span id="server-version">Server</span>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h1 id="page-title">Overview</h1>
+          <p id="page-subtitle">Job throughput, worker availability and analysis health.</p>
+        </div>
+        <div class="topbar-actions">
+          <span id="last-refresh" class="muted">Not refreshed</span>
+          <button id="refresh-button" class="button secondary">Refresh</button>
+        </div>
+      </header>
+
+      <section id="view-overview" class="view active">
+        <div id="overview-kpis" class="kpi-grid"></div>
+        <div class="grid two-columns">
+          <article class="card">
+            <div class="card-heading">
+              <div><h2>Completed jobs</h2><p>Daily throughput over the last 14 days.</p></div>
+            </div>
+            <div id="throughput-chart" class="chart"></div>
+          </article>
+          <article class="card">
+            <div class="card-heading">
+              <div><h2>Job status</h2><p>Current distribution across the queue and workers.</p></div>
+            </div>
+            <div id="status-chart" class="chart"></div>
+          </article>
+        </div>
+        <article class="card">
+          <div class="card-heading">
+            <div><h2>Recent jobs</h2><p>The ten most recently created jobs.</p></div>
+            <button class="text-button" data-go="jobs">View all jobs</button>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>Job</th><th>Scenario</th><th>Status</th><th>Worker</th><th>Analyses</th><th>Duration</th><th>Created</th></tr></thead><tbody id="recent-jobs-body"></tbody></table></div>
+        </article>
+      </section>
+
+      <section id="view-jobs" class="view">
+        <article class="card filter-card">
+          <div class="filter-grid">
+            <label><span>Search</span><input id="filter-search" type="search" placeholder="Job ID, scenario or model"></label>
+            <label><span>Status</span><select id="filter-status"><option value="">All statuses</option></select></label>
+            <label><span>Scenario</span><select id="filter-scenario"><option value="">All scenarios</option></select></label>
+            <label><span>Worker</span><select id="filter-worker"><option value="">All workers</option></select></label>
+            <label><span>Created from</span><input id="filter-from" type="date"></label>
+            <label><span>Created to</span><input id="filter-to" type="date"></label>
+          </div>
+          <div class="filter-actions"><button id="clear-filters" class="button secondary">Clear</button><button id="apply-filters" class="button">Apply filters</button></div>
+        </article>
+        <article class="card">
+          <div class="card-heading">
+            <div><h2>Jobs</h2><p id="jobs-count">Loading…</p></div>
+            <div class="inline-controls"><label>Rows <select id="jobs-page-size"><option>25</option><option selected>50</option><option>100</option></select></label></div>
+          </div>
+          <div class="table-wrap"><table class="jobs-table"><thead><tr><th data-sort="id">Job</th><th data-sort="scenario_id">Scenario</th><th data-sort="status">Status</th><th>Worker</th><th>Analyses</th><th data-sort="duration_seconds">Duration</th><th>Attempts</th><th data-sort="created_at">Created</th><th></th></tr></thead><tbody id="jobs-body"></tbody></table></div>
+          <div class="pagination"><button id="jobs-prev" class="button secondary">Previous</button><span id="jobs-page-label"></span><button id="jobs-next" class="button secondary">Next</button></div>
+        </article>
+      </section>
+
+      <section id="view-results" class="view">
+        <div class="results-layout">
+          <aside class="card result-browser">
+            <div class="card-heading compact"><div><h2>Completed jobs</h2><p>Select a job to inspect.</p></div></div>
+            <input id="result-job-search" type="search" placeholder="Filter jobs…">
+            <div id="result-job-list" class="result-job-list"></div>
+          </aside>
+          <div id="result-detail" class="result-detail">
+            <article class="card empty-state"><h2>No job selected</h2><p>Select a completed job to inspect response histories, scour changes, run metadata and raw data.</p></article>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-statistics" class="view">
+        <article class="card filter-card">
+          <div class="filter-grid statistics-controls">
+            <label><span>Metric</span><select id="stats-metric"></select></label>
+            <label><span>Analysis</span><select id="stats-analysis"><option value="">All analyses</option></select></label>
+            <label><span>Component</span><select id="stats-component"></select></label>
+            <label><span>Model point</span><select id="stats-point"><option value="">All model points</option></select></label>
+            <label><span>Group by</span><select id="stats-group"><option value="">No grouping</option><option value="scenario">Scenario</option><option value="worker">Worker</option><option value="analysis">Analysis</option><option value="model_point">Model point</option></select></label>
+            <label><span>Scatter X</span><select id="stats-x"><option value="">Observation order</option></select></label>
+            <label><span>Scenario filter</span><select id="stats-scenario"><option value="">All scenarios</option></select></label>
+            <label><span>Worker filter</span><select id="stats-worker"><option value="">All workers</option></select></label>
+            <label><span>Created from</span><input id="stats-from" type="date"></label>
+            <label><span>Created to</span><input id="stats-to" type="date"></label>
+          </div>
+          <div class="filter-actions"><a id="stats-export" class="button secondary" href="#">Export CSV</a><button id="stats-run" class="button">Calculate</button></div>
+        </article>
+        <div id="stats-kpis" class="kpi-grid stats-kpis"></div>
+        <div class="grid two-columns">
+          <article class="card"><div class="card-heading"><div><h2>Distribution</h2><p>Histogram of the selected response.</p></div></div><div id="histogram-chart" class="chart"></div></article>
+          <article class="card"><div class="card-heading"><div><h2>Relationship</h2><p id="scatter-description">Observation value by sequence.</p></div></div><div id="scatter-chart" class="chart"></div></article>
+        </div>
+        <article class="card">
+          <div class="card-heading"><div><h2>Grouped statistics</h2><p>Descriptive statistics for the selected grouping.</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Group</th><th>N</th><th>Mean</th><th>Median</th><th>Std. dev.</th><th>Min</th><th>Q1</th><th>Q3</th><th>Max</th></tr></thead><tbody id="stats-groups-body"></tbody></table></div>
+        </article>
+        <article class="card">
+          <div class="card-heading"><div><h2>Observations</h2><p id="stats-observation-count"></p></div></div>
+          <div class="table-wrap limited-height"><table><thead><tr><th>Job</th><th>Scenario</th><th>Worker</th><th>Analysis</th><th>Point</th><th>Component</th><th>Step</th><th>Value</th></tr></thead><tbody id="stats-observations-body"></tbody></table></div>
+        </article>
+      </section>
+
+      <section id="view-workers" class="view">
+        <div id="worker-kpis" class="kpi-grid"></div>
+        <article class="card">
+          <div class="card-heading"><div><h2>Workers</h2><p>Capacity, activity, versions and reliability.</p></div></div>
+          <div class="table-wrap"><table><thead><tr><th>Worker</th><th>State</th><th>Capacity</th><th>Active</th><th>Completed</th><th>Failed</th><th>Success rate</th><th>Average duration</th><th>Versions</th><th>Last seen</th></tr></thead><tbody id="workers-body"></tbody></table></div>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="job-dialog" class="job-dialog"><div id="job-dialog-content"></div></dialog>
+  <div id="loading" class="loading-overlay hidden"><div class="spinner"></div><span>Loading data…</span></div>
+  <script src="/dashboard/dashboard/app.js" defer></script>
+</body>
+</html>
