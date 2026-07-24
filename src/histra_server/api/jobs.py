@@ -102,6 +102,11 @@ async def create_job(
     max_attempts: Annotated[int, Form(ge=1, le=100)] = 3,
     session: Session = Depends(get_session),
 ):
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Persistent HRX uploads were removed; submit JOB JSON to POST /api/v2/jobs",
+    )
+
     settings = _settings(request)
     storage = _storage(request)
     raw_definition = await _read_json_upload(job_file, settings.max_job_json_bytes, "job.json")
@@ -279,11 +284,43 @@ def download_package(
 ):
     job, attempt = get_current_attempt(session, job_id, attempt_id)
     require_active_attempt(job, attempt)
-    package_path = _storage(request).resolve(
-        f"jobs/{job_id}/attempts/{attempt_id}/input/package.zip"
-    )
-    if not package_path.is_file():
-        raise HTTPException(status_code=500, detail="Attempt package is missing from storage")
+    if job.package_relative_path:
+        package_path = _storage(request).resolve(
+            f"jobs/{job_id}/attempts/{attempt_id}/input/package.zip"
+        )
+        if not package_path.is_file():
+            raise HTTPException(status_code=500, detail="Attempt package is missing from storage")
+    else:
+        try:
+            built = request.app.state.package_builder.build(
+                job.job_definition,
+                job_id=job_id,
+                attempt_id=attempt_id,
+            )
+        except Exception as exc:
+            attempt.status = AttemptStatus.FAILED
+            attempt.finished_at = utcnow()
+            attempt.failure_reason = f"JOB-to-HRX build failed: {exc}"
+            job.current_attempt_id = None
+            job.error_message = attempt.failure_reason
+            job.status = (
+                JobStatus.QUEUED if job.attempt_count < job.max_attempts else JobStatus.FAILED
+            )
+            session.commit()
+            raise HTTPException(
+                status_code=502,
+                detail=f"JOB-to-HRX build failed: {exc}",
+            ) from exc
+        job.model_sha256 = built.hrx_sha256
+        job.model_size_bytes = built.hrx_size_bytes
+        attempt.progress_json = {
+            **(attempt.progress_json or {}),
+            "job_sha256": built.job_sha256,
+            "hrx_sha256": built.hrx_sha256,
+            "builder_version": built.builder_version,
+        }
+        session.commit()
+        package_path = built.path
     return FileResponse(
         package_path,
         media_type="application/zip",
@@ -368,7 +405,11 @@ async def upload_results(
             detail="run.json status must be 'completed'; use the failure endpoint otherwise",
         )
     input_sha256 = run_data.get("model", {}).get("input_sha256")
-    if input_sha256 is not None and str(input_sha256).lower() != job.model_sha256.lower():
+    if (
+        job.model_sha256
+        and input_sha256 is not None
+        and str(input_sha256).lower() != job.model_sha256.lower()
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="run.json model.input_sha256 does not match the server HRX",

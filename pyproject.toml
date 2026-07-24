@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "histra-job-server"
-version = "0.2.0"
+version = "0.3.0"
 description = "Containerised FastAPI job server for distributed HiStrA analyses"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.18,<2",
   "fastapi[standard]>=0.128,<1",
+  "httpx>=0.28,<1",
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.14,<3",
   "python-multipart>=0.0.20,<1",

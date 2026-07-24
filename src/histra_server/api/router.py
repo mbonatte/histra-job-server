@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .dashboard import router as dashboard_router
 from .health import router as health_router
 from .jobs import router as jobs_router
+from .jobs_v2 import router as jobs_v2_router
 from .workers import router as workers_router
 
 router = APIRouter()
@@ -10,3 +11,4 @@ router.include_router(health_router)
 router.include_router(dashboard_router)
 router.include_router(workers_router)
 router.include_router(jobs_router)
+router.include_router(jobs_v2_router)

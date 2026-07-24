@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     app_version: str = "0.2.0"
     database_url: str = "sqlite:///./histra-server.sqlite3"
     storage_root: Path = Path("./data")
+    builder_url: str = "http://builder:8000"
+    builder_timeout_seconds: float = Field(default=180.0, gt=0, le=3600)
+    package_cache_root: Path = Path("/tmp/histra-packages")
+    package_cache_ttl_seconds: int = Field(default=3600, ge=60, le=604800)
     lease_seconds: int = Field(default=300, ge=30, le=86_400)
     lease_reaper_interval_seconds: int = Field(default=30, ge=0, le=3600)
     max_job_json_bytes: int = Field(default=5 * 1024 * 1024, ge=1024)

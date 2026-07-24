@@ -7,3 +7,5 @@ __pycache__/
 *.sqlite3
 /data/
 /dist/
+/build/
+/histra-job-server-*.patch

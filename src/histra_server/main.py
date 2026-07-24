@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from .api.router import router
 from .config import Settings, get_settings
 from .db import build_engine, build_session_factory
+from .package_builder import EphemeralPackageBuilder
 from .services.jobs import requeue_expired_attempts
 from .storage import Storage
 
@@ -47,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.engine = build_engine(resolved_settings)
         app.state.session_factory = build_session_factory(app.state.engine)
         app.state.storage = Storage(resolved_settings.storage_root)
+        app.state.package_builder = EphemeralPackageBuilder(resolved_settings)
         reaper_task = None
         if resolved_settings.lease_reaper_interval_seconds > 0:
             reaper_task = asyncio.create_task(_lease_reaper(app))
