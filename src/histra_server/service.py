@@ -185,7 +185,7 @@ def get_package(
         raise NotFoundError("attempt does not exist")
     if attempt.runner_id != runner_id:
         raise IdentityError("attempt belongs to another runner")
-    if attempt.status not in {"leased", "completed"}:
+    if attempt.status != "leased":
         raise InvalidStateError(f"package is unavailable while attempt is {attempt.status}")
     package = cache.get(attempt.id)
     if package is not None:

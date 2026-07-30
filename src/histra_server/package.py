@@ -26,6 +26,8 @@ def build_attempt_package(
     registry: TemplateRegistry,
 ) -> tuple[bytes, dict[str, Any]]:
     artifact = compile_job(job, registry)
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=timezone.utc)
     timestamp = created_at.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
     manifest = {
         "protocol_version": PACKAGE_PROTOCOL_VERSION,
