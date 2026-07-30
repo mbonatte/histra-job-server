@@ -1,0 +1,37 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: histra
+          POSTGRES_USER: histra
+          POSTGRES_PASSWORD: histra
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U histra"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: histra-job-server
+      - uses: actions/checkout@v4
+        with:
+          repository: mbonatte/histra-job-builder
+          ref: v1.0.0
+          path: histra-job-builder
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ./histra-job-builder
+      - run: python -m pip install -e './histra-job-server[test,postgres]'
+      - working-directory: histra-job-server
+        run: pytest --cov=histra_server --cov-report=term-missing
