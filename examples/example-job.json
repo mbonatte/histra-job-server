@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "job_id": "example-0001",
+  "model": {
+    "output_path": "models/example-0001.hrx",
+    "template": {
+      "id": "example-base",
+      "sha256": "d5b02bc2352b044491b14d907cc486a88084009fc2e778fcf2d9d05ba52bcc5f"
+    },
+    "patches": [
+      {
+        "op": "set_attribute",
+        "xpath": "//Span[@id='main']",
+        "attribute": "length",
+        "value": 27.5
+      }
+    ]
+  },
+  "workflow": {
+    "analyses": [
+      {
+        "id": "static",
+        "result_file": "static-results.json"
+      }
+    ]
+  },
+  "metadata": {
+    "campaign_id": "example",
+    "generation": {
+      "generator": "user-job-authoring",
+      "generator_version": "1.0.0",
+      "seed": 184729
+    }
+  }
+}

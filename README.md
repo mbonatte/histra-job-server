@@ -2,7 +2,9 @@
 
 The authoritative control plane for the HiStrA distributed job system.
 
-There is one unversioned API because this is the first production contract. The
+There is one unversioned API because this is the first production contract.
+See [`docs/system-architecture.md`](docs/system-architecture.md) for the complete
+three-repository lifecycle and design decisions. The
 package version is `1.0.0`; there are no legacy upload routes and no compatibility
 layer.
 
