@@ -1,79 +1,35 @@
 services:
   db:
-    image: postgres:17-alpine
-    restart: unless-stopped
+    image: postgres:17
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-histra}
-      POSTGRES_USER: ${POSTGRES_USER:-histra}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: histra
+      POSTGRES_USER: histra
+      POSTGRES_PASSWORD: histra
     volumes:
-      - postgres_data:/var/lib/postgapi:resql/data
+      - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER:-histra} -d ${POSTGRES_DB:-histra}",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U histra"]
       interval: 5s
       timeout: 5s
       retries: 20
-      start_period: 10s
 
-  builder:
-    image: ${HISTRA_BUILDER_IMAGE:-ghcr.io/mbonatte/histra-job-builder:0.6.0}
-    restart: unless-stopped
-    expose:
-      - "8000"
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-
-  api:
-    image: ${HISTRA_SERVER_IMAGE:-histra-job-server:local}
+  server:
     build:
-      context: .
-    restart: unless-stopped
-    environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-histra}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-histra}
-      STORAGE_ROOT: /data
-      BUILDER_URL: http://builder:8000
-      BUILDER_TIMEOUT_SECONDS: ${BUILDER_TIMEOUT_SECONDS:-180}
-      PACKAGE_CACHE_ROOT: /tmp/histra-packages
-      PACKAGE_CACHE_TTL_SECONDS: ${PACKAGE_CACHE_TTL_SECONDS:-3600}
-      LEASE_SECONDS: ${LEASE_SECONDS:-300}
-      LEASE_REAPER_INTERVAL_SECONDS: ${LEASE_REAPER_INTERVAL_SECONDS:-30}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      SQL_ECHO: ${SQL_ECHO:-false}
-      DASHBOARD_ENABLED: ${DASHBOARD_ENABLED:-true}
-      DASHBOARD_WORKER_ONLINE_SECONDS: ${DASHBOARD_WORKER_ONLINE_SECONDS:-300}
-    expose:
-      - "8000"
-    networks:
-      default:
-      proxy:
-        aliases:
-          - histra-api
-    volumes:
-      - artifact_data:/data
-    tmpfs:
-      - /tmp/histra-packages:size=2g,mode=1770
+      context: ..
+      dockerfile: histra-job-server/Dockerfile
+    env_file: .env
     depends_on:
       db:
         condition: service_healthy
-        restart: true
-      builder:
-        condition: service_healthy
-        restart: true
-
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./templates:/data/templates:ro
+      - package-cache:/tmp/histra-packages
+    read_only: true
+    tmpfs:
+      - /tmp
 
 volumes:
-  postgres_data:
-  artifact_data:
-
-networks:
-  default:
-  proxy:
-    external: true
+  postgres-data:
+  package-cache:

@@ -1,30 +1,11 @@
-FROM python:3.13-slim
+FROM python:3.12-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1
+WORKDIR /opt/histra
+COPY histra-job-builder /src/histra-job-builder
+COPY histra-job-server /src/histra-job-server
+RUN python -m pip install --no-cache-dir /src/histra-job-builder \
+    && python -m pip install --no-cache-dir '/src/histra-job-server[postgres]'
 
-WORKDIR /app
-
-RUN groupadd --system histra \
-    && useradd --system --gid histra --home-dir /app histra
-
-COPY pyproject.toml README.md alembic.ini ./
-COPY src ./src
-COPY migrations ./migrations
-COPY docker/entrypoint.sh ./docker/entrypoint.sh
-
-RUN python -m pip install --upgrade pip \
-    && python -m pip install . \
-    && mkdir -p /data \
-    && chown -R histra:histra /app /data
-
-USER histra
-
+USER 65532:65532
 EXPOSE 8000
-VOLUME ["/data"]
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
-
-ENTRYPOINT ["/app/docker/entrypoint.sh"]
+CMD ["uvicorn", "histra_server.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,3 +1,6 @@
-"""HiStrA job server package."""
+"""HiStrA JOB server."""
 
-__version__ = "0.2.0"
+from .main import create_app
+
+__all__ = ["create_app"]
+__version__ = "1.0.0"
