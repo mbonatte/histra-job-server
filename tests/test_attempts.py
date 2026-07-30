@@ -71,3 +71,29 @@ def test_expired_lease_requeues_job(client, claim, app):
         assert expire_leases(session, app.state.cache) == 1
         assert session.get(Attempt, claim["attempt_id"]).status == "expired"
         assert session.get(Job, "job-001").status == "queued"
+
+
+def test_different_result_retry_conflicts(client, claim, runner):
+    payload = result_payload(claim, runner)
+    endpoint = f"/jobs/{claim['job_id']}/attempts/{claim['attempt_id']}/results"
+    assert client.post(endpoint, json=payload).status_code == 200
+    payload["results"]["maximum_displacement"] = 99
+    assert client.post(endpoint, json=payload).status_code == 409
+
+
+def test_completed_package_cannot_be_regenerated(client, claim, runner):
+    payload = result_payload(claim, runner)
+    endpoint = f"/jobs/{claim['job_id']}/attempts/{claim['attempt_id']}/results"
+    assert client.post(endpoint, json=payload).status_code == 200
+    response = client.get(
+        f"/jobs/{claim['job_id']}/attempts/{claim['attempt_id']}/package",
+        headers={"X-Runner-ID": runner["runner_id"]},
+    )
+    assert response.status_code == 422
+
+
+def test_cancelled_lease_removes_package(client, claim, app):
+    assert app.state.cache.path_for(claim["attempt_id"]).exists()
+    response = client.post(f"/jobs/{claim['job_id']}/cancel")
+    assert response.json()["status"] == "cancelled"
+    assert not app.state.cache.path_for(claim["attempt_id"]).exists()
