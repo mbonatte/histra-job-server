@@ -1,40 +1,34 @@
 from __future__ import annotations
 
-from functools import lru_cache
+import os
+from dataclasses import dataclass
 from pathlib import Path
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
+
+def _optional(value: str | None) -> str | None:
+    return value if value else None
 
 
-class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        case_sensitive=False,
-        extra="ignore",
-    )
+@dataclass(frozen=True)
+class Settings:
+    database_url: str = "sqlite:///./histra.db"
+    template_root: Path = Path("./templates")
+    package_cache_root: Path = Path("./.package-cache")
+    api_token: str | None = None
+    lease_seconds: int = 900
+    package_ttl_seconds: int = 3600
+    default_max_attempts: int = 3
 
-    app_name: str = "HiStrA Job Server"
-    app_version: str = "0.2.0"
-    database_url: str = "sqlite:///./histra-server.sqlite3"
-    storage_root: Path = Path("./data")
-    builder_url: str = "http://builder:8000"
-    builder_timeout_seconds: float = Field(default=180.0, gt=0, le=3600)
-    package_cache_root: Path = Path("/tmp/histra-packages")
-    package_cache_ttl_seconds: int = Field(default=3600, ge=60, le=604800)
-    lease_seconds: int = Field(default=300, ge=30, le=86_400)
-    lease_reaper_interval_seconds: int = Field(default=30, ge=0, le=3600)
-    max_job_json_bytes: int = Field(default=5 * 1024 * 1024, ge=1024)
-    max_model_bytes: int = Field(default=50 * 1024 * 1024, ge=1024)
-    max_result_file_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
-    max_log_file_bytes: int = Field(default=20 * 1024 * 1024, ge=1024)
-    sql_echo: bool = False
-    log_level: str = "INFO"
-    dashboard_enabled: bool = True
-    dashboard_worker_online_seconds: int = Field(default=300, ge=30, le=86_400)
-
-
-@lru_cache
-def get_settings() -> Settings:
-    return Settings()
+    @classmethod
+    def from_env(cls) -> "Settings":
+        return cls(
+            database_url=os.getenv("HISTRA_DATABASE_URL", cls.database_url),
+            template_root=Path(os.getenv("HISTRA_TEMPLATE_ROOT", "./templates")),
+            package_cache_root=Path(
+                os.getenv("HISTRA_PACKAGE_CACHE_ROOT", "./.package-cache")
+            ),
+            api_token=_optional(os.getenv("HISTRA_API_TOKEN")),
+            lease_seconds=int(os.getenv("HISTRA_LEASE_SECONDS", "900")),
+            package_ttl_seconds=int(os.getenv("HISTRA_PACKAGE_TTL_SECONDS", "3600")),
+            default_max_attempts=int(os.getenv("HISTRA_DEFAULT_MAX_ATTEMPTS", "3")),
+        )

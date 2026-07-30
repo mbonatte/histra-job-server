@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<HiStrAProject version="1">
+  <Geometry>
+    <Span id="main" length="25.0" units="m" />
+  </Geometry>
+  <Analyses>
+    <Analysis id="static" type="static" />
+  </Analyses>
+</HiStrAProject>
