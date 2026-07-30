@@ -17,7 +17,7 @@ class StructuralBackend:
         )
 
 
-class TestClientServerAdapter:
+class ServerAdapter:
     """Expose the real FastAPI application through the Runner client protocol."""
 
     def __init__(self, client):
@@ -75,7 +75,7 @@ def test_job_to_hrx_to_runner_to_result(client, job_document, tmp_path, app):
     assert client.post("/jobs", json=job_document).status_code == 201
 
     worker = Worker(
-        client=TestClientServerAdapter(client),
+        client=ServerAdapter(client),
         executor=RunnerExecutor(StructuralBackend()),
         work_root=tmp_path / "runner-work",
         runner_name="acceptance-runner",

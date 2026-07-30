@@ -33,6 +33,7 @@ addopts = "-ra --strict-markers"
 [tool.coverage.run]
 branch = true
 source = ["histra_server"]
+omit = ["src/histra_server/cli.py"]
 
 [tool.coverage.report]
 show_missing = true
