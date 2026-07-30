@@ -1,0 +1,138 @@
+name: Docker image
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+
+  push:
+    tags:
+      - "v*.*.*"
+
+  workflow_dispatch:
+    inputs:
+      publish_latest:
+        description: Publish the latest tag
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: docker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  publish:
+    name: Build and publish image
+
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Determine source revision
+        id: source
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            echo "ref=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.event.workflow_run.head_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out HiStrA Job Server
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.source.outputs.ref }}
+          path: histra-job-server
+          persist-credentials: false
+
+      - name: Check out HiStrA Job Builder
+        uses: actions/checkout@v4
+        with:
+          repository: mbonatte/histra-job-builder
+          ref: main
+          path: histra-job-builder
+          persist-credentials: false
+
+      - name: Show Docker build context
+        shell: bash
+        run: |
+          echo "Workspace contents:"
+          find . -maxdepth 2 -type f | sort | head -200
+
+          test -f histra-job-server/Dockerfile
+          test -f histra-job-server/pyproject.toml
+          test -f histra-job-builder/pyproject.toml
+
+      - name: Convert image name to lowercase
+        id: image
+        shell: bash
+        run: |
+          IMAGE="${REGISTRY}/${IMAGE_NAME}"
+          echo "name=${IMAGE,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.image.outputs.name }}
+          flavor: latest=false
+
+          tags: |
+            type=sha,prefix=sha-,format=short
+
+            type=raw,value=main,enable=${{ github.event_name == 'workflow_run' }}
+
+            type=semver,pattern={{version}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{major}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish_latest) }}
+
+          labels: |
+            org.opencontainers.image.title=HiStrA Job Server
+            org.opencontainers.image.description=FastAPI server for distributed HiStrA analyses
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./histra-job-server/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha,scope=histra-job-server
+          cache-to: type=gha,mode=max,scope=histra-job-server
+          provenance: mode=max
+          sbom: true

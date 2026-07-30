@@ -1,44 +1,105 @@
 name: CI
+
 on:
-  push:
   pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
     services:
       postgres:
-        image: postgres:17
+        image: postgres:17-alpine
+
         env:
           POSTGRES_DB: histra
           POSTGRES_USER: histra
-          POSTGRES_PASSWORD: histra
-        ports: ["5432:5432"]
+          POSTGRES_PASSWORD: histra-ci-password
+
+        ports:
+          - 5432:5432
+
         options: >-
-          --health-cmd "pg_isready -U histra"
+          --health-cmd "pg_isready -U histra -d histra"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 20
+
+    env:
+      DATABASE_URL: postgresql+psycopg://histra:histra-ci-password@127.0.0.1:5432/histra
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out HiStrA Job Server
+        uses: actions/checkout@v4
         with:
           path: histra-job-server
-      - uses: actions/checkout@v4
+          persist-credentials: false
+
+      - name: Check out HiStrA Job Builder
+        uses: actions/checkout@v4
         with:
           repository: mbonatte/histra-job-builder
           ref: main
           path: histra-job-builder
           persist-credentials: false
-      - uses: actions/checkout@v4
+
+      - name: Check out HiStrA Job Runner
+        uses: actions/checkout@v4
         with:
           repository: mbonatte/histra-job-runner
           ref: v1.0.0
           path: histra-job-runner
-      - uses: actions/setup-python@v5
+          persist-credentials: false
+
+      - name: Configure CI storage
+        shell: bash
+        run: |
+          STORAGE_ROOT="${RUNNER_TEMP}/histra-artifacts"
+          mkdir -p "$STORAGE_ROOT"
+          echo "STORAGE_ROOT=$STORAGE_ROOT" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install -e ./histra-job-builder
-      - run: python -m pip install -e ./histra-job-runner
-      - run: python -m pip install -e './histra-job-server[test,postgres]'
-      - working-directory: histra-job-server
-        run: pytest --cov=histra_server --cov-report=term-missing
+          cache: pip
+          cache-dependency-path: |
+            histra-job-server/pyproject.toml
+            histra-job-builder/pyproject.toml
+            histra-job-runner/pyproject.toml
+
+      - name: Upgrade packaging tools
+        run: python -m pip install --upgrade pip
+
+      - name: Install HiStrA Job Builder
+        run: python -m pip install -e ./histra-job-builder
+
+      - name: Install HiStrA Job Runner
+        run: python -m pip install -e ./histra-job-runner
+
+      - name: Install HiStrA Job Server
+        run: python -m pip install -e "./histra-job-server[test,postgres]"
+
+      - name: Run tests
+        working-directory: histra-job-server
+        run: |
+          python -m pytest \
+            --cov=histra_server \
+            --cov-report=term-missing
