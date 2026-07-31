@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115",
-  "histra-job-builder @ git+https://github.com/mbonatte/histra-job-builder.git@main",
+  "histra-job-builder",
   "pydantic>=2.8",
   "sqlalchemy>=2.0",
   "uvicorn[standard]>=0.30",
