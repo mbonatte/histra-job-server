@@ -13,11 +13,4 @@ RUN python -m pip install --no-cache-dir --upgrade pip \
     && python -m pip install --no-cache-dir /src/histra-job-builder \
     && python -m pip install --no-cache-dir "/src/histra-job-server[postgres]"
 
-CMD [
-  "uvicorn",
-  "histra_server.app:app",
-  "--host",
-  "0.0.0.0",
-  "--port",
-  "8000"
-]
+CMD ["uvicorn", "histra_server.app:app", "--host", "0.0.0.0", "--port", "8000"]
