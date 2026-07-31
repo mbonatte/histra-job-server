@@ -37,7 +37,6 @@ def test_complete_attempt_persists_results_and_deletes_package(client, claim, ru
     detail = client.get("/jobs/job-001").json()
     assert detail["status"] == "completed"
     assert detail["result"]["results"]["maximum_displacement"] == 0.0042
-    # Exact retry is idempotent.
     assert client.post(
         f"/jobs/{claim['job_id']}/attempts/{claim['attempt_id']}/results", json=payload
     ).status_code == 200

@@ -1,4 +1,16 @@
-"""Acceptance test crossing Server, Builder, and Runner package boundaries."""
+"""Acceptance test crossing Server, Builder, and Runner package boundaries.
+
+The runner is intentionally not a production dependency of the server. A
+server-only development install therefore skips this module, while CI installs
+the pinned compatible runner and executes the complete acceptance path.
+"""
+
+import pytest
+
+pytest.importorskip(
+    "histra_runner.backends",
+    reason="install histra-job-runner v1.0.0 to run the cross-repository acceptance test",
+)
 
 from histra_runner.backends import ExecutionResult
 from histra_runner.contracts import Claim
@@ -84,7 +96,6 @@ def test_job_to_hrx_to_runner_to_result(client, job_document, tmp_path, app):
     )
     worker.register()
     assert worker.run_once() is True
-
     completed = client.get("/jobs/job-001").json()
     assert completed["status"] == "completed"
     assert completed["result"]["results"]["status"] == "converged"

@@ -7,9 +7,9 @@ from histra_server.config import Settings
 from histra_server.main import create_app
 
 
-def test_health_endpoints_are_public(client):
-    assert client.get("/health/live").json()["status"] == "ok"
-    assert client.get("/health/ready").json()["status"] == "ready"
+def test_health_endpoints_are_public(raw_client):
+    assert raw_client.get("/health/live").json()["status"] == "ok"
+    assert raw_client.get("/health/ready").json()["status"] == "ready"
 
 
 def test_optional_bearer_auth(settings, job_document):

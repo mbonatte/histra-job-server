@@ -80,3 +80,18 @@ curl -H "Authorization: Bearer $HISTRA_API_TOKEN" https://your-host/api/ui/dashb
 ```
 
 For each imported HRX, the Builder UI reports whether the initial no-patch round trip is byte-for-byte exact. A failure is treated as an engineering issue and should be investigated before generating scenarios.
+
+## Cross-repository acceptance test
+
+The ordinary server test suite can run without installing the Runner; in that
+case `tests/test_system_integration.py` is skipped. GitHub Actions checks out and
+installs the immutable `histra-job-runner` `v1.0.0` tag, so CI exercises the
+complete Server → Builder → Runner → result path.
+
+To run that acceptance test locally, keep the three repositories as siblings and
+install them together:
+
+```bash
+python -m pip install -e ../histra-job-runner -e ../histra-job-builder -e ".[test]"
+pytest --cov=histra_server --cov-report=term-missing
+```

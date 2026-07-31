@@ -7,7 +7,11 @@ from histra_server.models import Attempt, Job
 
 def package_files(data: bytes):
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
-        return set(archive.namelist()), json.loads(archive.read("manifest.json")), archive.read("job.json")
+        return (
+            set(archive.namelist()),
+            json.loads(archive.read("manifest.json")),
+            archive.read("job.json"),
+        )
 
 
 def test_claim_compiles_three_file_ephemeral_package(client, claim, runner, app):
@@ -22,8 +26,6 @@ def test_claim_compiles_three_file_ephemeral_package(client, claim, runner, app)
     assert manifest["job_sha256"] == claim["job_sha256"]
     assert manifest["hrx"]["sha256"] == claim["hrx_sha256"]
     assert b'"job_id":"job-001"' in job_bytes
-
-    # The database contains canonical JOB/provenance, never HRX bytes or a package path.
     with app.state.session_factory() as session:
         job = session.get(Job, "job-001")
         attempt = session.get(Attempt, claim["attempt_id"])

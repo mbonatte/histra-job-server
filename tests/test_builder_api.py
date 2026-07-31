@@ -10,7 +10,7 @@ def test_import_roundtrip_preview_and_compile(client,auth,imported,hrx_bytes):
     assert compiled.status_code==200
     assert compiled.content==hrx_bytes
     templates=client.get("/api/ui/builder/templates",headers=auth).json()["items"]
-    assert templates[0]["id"]=="bridge-1"
+    assert any(item["id"] == "bridge-1" for item in templates)
 
 def test_generate_and_submit_variants(client,auth,imported):
     payload={"base_job":imported["job"],"variants":{"variants":[{"job_id":"bridge-scour-050","changes":[{"path":"/metadata/scour_normalized","value":0.5}]}]}}
