@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HiStrA Model Viewer</title>
+  <link rel="stylesheet" href="/static/shared.css">
+  <style>
+    html, body { overflow: hidden; }
+    .page { height: 100%; display: grid; grid-template-rows: 52px 1fr; }
+    .workspace { min-height: 0; display: grid; grid-template-columns: minmax(250px, 310px) 1fr; }
+    aside { position: relative; z-index: 3; overflow: auto; padding: 17px; border-right: 1px solid var(--border); background: var(--panel); box-shadow: 10px 0 30px rgba(0,0,0,.2); }
+    main { position: relative; min-width: 0; min-height: 0; }
+    h1 { margin: 0 0 4px; font-size: 20px; }
+    .subtitle { margin: 0 0 17px; color: var(--muted); font-size: 12px; }
+    .section { padding: 14px 0; border-top: 1px solid var(--border); }
+    .section-title { margin-bottom: 10px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+    .drop-zone { display: block; padding: 18px 12px; border: 1px dashed #60718b; border-radius: 10px; background: rgba(111,183,255,.055); color: var(--text); text-align: center; cursor: pointer; transition: .15s ease; }
+    .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: rgba(111,183,255,.12); }
+    .drop-zone strong { display: block; margin-bottom: 3px; }
+    .drop-zone span { color: var(--muted); font-size: 12px; }
+    #fileInput { display: none; }
+    .field { margin-top: 10px; }
+    .field > label:first-child { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+    input[type="range"] { min-height: 0; padding: 0; border: 0; background: transparent; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-top: 9px; color: var(--text); cursor: pointer; }
+    .button-grid { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 7px; }
+    .stats { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; color: var(--muted); font-size: 12px; }
+    .stats strong { color: var(--text); font-variant-numeric: tabular-nums; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #selection { min-height: 44px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    #selection dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+    #selection dt { color: var(--muted); }
+    #selection dd { margin: 0; color: var(--text); }
+    #legend { display: grid; gap: 5px; max-height: 210px; overflow: auto; padding-right: 4px; }
+    .legend-item { display: grid; grid-template-columns: 13px minmax(0,1fr); align-items: center; gap: 7px; color: var(--muted); font-size: 11px; }
+    .legend-swatch { width: 13px; height: 13px; border: 1px solid rgba(255,255,255,.3); border-radius: 3px; }
+    .legend-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 720px) {
+      .workspace { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+      aside { max-height: 44vh; border-right: 0; border-bottom: 1px solid var(--border); }
+    }
+    
+  </style>
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.184.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.184.0/examples/jsm/"}}
+  </script>
+</head>
+<body>
+<div class="page">
+  <nav class="top-nav">
+    <div class="brand">
+      <strong>HiStrA Job Server</strong>
+      <span>HRX and JOB workflow</span>
+    </div>
+    <div class="nav-links">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/builder">Builder</a>
+      <a class="active" href="/viewer">Model Viewer</a>
+    </div>
+  </nav>
+  <div class="workspace">
+    <aside>
+      <h1>HiStrA Model Viewer</h1>
+      <p class="subtitle">Smooth Three.js model inspection</p>
+      <label id="dropZone" class="drop-zone" for="fileInput">
+        <strong>Open an HRX model</strong>
+        <span>Choose or drop a .hrx, .xml, or text export</span>
+      </label>
+      <input id="fileInput" type="file" accept=".hrx,.xml,.txt,text/xml,application/xml,text/plain">
+
+      <section class="section">
+        <div class="section-title">Display</div>
+        <div class="field"><label for="colorBy"><span>Color by</span></label><select id="colorBy">
+          <option value="material">Material</option><option value="layer">Layer</option><option value="parent">Parent</option><option value="thickness">Thickness</option><option value="quad">Quad key</option><option value="single">Single color</option>
+        </select></div>
+        <label class="checkbox-row"><input id="edges" type="checkbox" checked> Show element edges</label>
+        <label class="checkbox-row"><input id="nodes" type="checkbox"> Show referenced nodes</label>
+        <label class="checkbox-row"><input id="extrude" type="checkbox"> Extrude thickness</label>
+        <div class="field"><label for="thicknessScale"><span>Thickness scale</span><output id="thicknessScaleOut">0.10</output></label><input id="thicknessScale" type="range" min="0" max="1" step="0.01" value="0.10"></div>
+        <div class="field"><label for="opacity"><span>Opacity</span><output id="opacityOut">0.92</output></label><input id="opacity" type="range" min="0.05" max="1" step="0.01" value="0.92"></div>
+      </section>
+
+      <section class="section"><div class="section-title">View</div><div class="button-grid">
+        <button id="frontView" disabled>Front X–Z</button><button id="topView" disabled>Top X–Y</button><button id="sideView" disabled>Side Y–Z</button><button id="isoView" disabled>Isometric</button><button id="fitView" disabled>Fit model</button><button id="resetSelection" disabled>Clear selection</button>
+      </div></section>
+
+      <section class="section"><div class="section-title">Model</div><div class="stats">
+        <span>File</span><strong id="fileName">—</strong><span>Nodes</span><strong id="nodeCount">0</strong><span>Quads</span><strong id="quadCount">0</strong><span>Materials</span><strong id="materialCount">0</strong><span>Layers</span><strong id="layerCount">0</strong>
+      </div></section>
+      <section class="section"><div class="section-title">Selected quad</div><div id="selection">Click a quad to inspect it.</div></section>
+      <section class="section"><div class="section-title">Legend</div><div id="legend"><span class="muted">Open a model to build the legend.</span></div></section>
+    </aside>
+    <main id="viewport">
+      <div id="message" class="viewer-message">Open a model file to render its <code>&lt;Quad&gt;</code> elements.</div>
+      <div class="viewer-hint">Left drag: orbit · wheel: zoom · right drag: pan · click: inspect</div>
+    </main>
+  </div>
+</div>
+<script type="module">
+  import { QuadViewer, decodeLocalFile } from '/static/viewer-core.js';
+  const $ = id => document.getElementById(id);
+  const ui = Object.fromEntries(['viewport','message','dropZone','fileInput','colorBy','edges','nodes','extrude','thicknessScale','thicknessScaleOut','opacity','opacityOut','frontView','topView','sideView','isoView','fitView','resetSelection','fileName','nodeCount','quadCount','materialCount','layerCount','selection','legend'].map(id => [id,$(id)]));
+  const viewer = new QuadViewer(ui.viewport, { extrude:false, thicknessScale:.1, opacity:.92, colorBy:'material', edges:true, nodes:false });
+  const showMessage=(text,error=false)=>{ui.message.textContent=text;ui.message.classList.toggle('error',error);ui.message.classList.remove('hidden')};
+  const hideMessage=()=>ui.message.classList.add('hidden');
+  const enableButtons=value=>[ui.frontView,ui.topView,ui.sideView,ui.isoView,ui.fitView,ui.resetSelection].forEach(button=>button.disabled=!value);
+  viewer.on('stats',stats=>{ui.fileName.textContent=stats.name||'—';ui.fileName.title=stats.name||'';ui.nodeCount.textContent=stats.nodes.toLocaleString();ui.quadCount.textContent=stats.quads.toLocaleString();ui.materialCount.textContent=stats.materials.toLocaleString();ui.layerCount.textContent=stats.layers.toLocaleString();enableButtons(stats.quads>0)});
+  viewer.on('selection',selection=>{
+    if(!selection){ui.selection.textContent='Click a quad to inspect it.';return}
+    const q=selection.quad,rows=[['Key',q.key],['Name',q.name||'—'],['Nodes',q.nodeKeys.join(', ')],['Material',q.material],['Layer',q.layer],['Parent',`${q.parentType||'—'} ${q.parentKey}`],['Thickness',q.thicknesses.map(v=>Number(v.toFixed(5))).join(', ')]];
+    const dl=document.createElement('dl');for(const [label,value] of rows){const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=String(value);dl.append(dt,dd)}ui.selection.replaceChildren(dl);
+  });
+  viewer.on('legend',entries=>{ui.legend.replaceChildren();for(const {label,color} of entries.slice(0,80)){const row=document.createElement('div');row.className='legend-item';row.innerHTML=`<span class="legend-swatch" style="background:${color}"></span><span class="legend-label" title="${label.replaceAll('&','&amp;').replaceAll('"','&quot;')}">${label}</span>`;ui.legend.append(row)}if(entries.length>80){const more=document.createElement('span');more.className='muted';more.textContent=`…and ${entries.length-80} more categories`;ui.legend.append(more)}});
+  async function openFile(file){if(!file)return;showMessage(`Reading ${file.name}…`);try{const text=await decodeLocalFile(file);viewer.loadHrxText(text,file.name);hideMessage()}catch(error){console.error(error);showMessage(error instanceof Error?error.message:String(error),true)}}
+  ui.fileInput.addEventListener('change',()=>openFile(ui.fileInput.files?.[0]));
+  ui.dropZone.addEventListener('dragover',event=>{event.preventDefault();ui.dropZone.classList.add('dragging')});
+  ui.dropZone.addEventListener('dragleave',()=>ui.dropZone.classList.remove('dragging'));
+  ui.dropZone.addEventListener('drop',event=>{event.preventDefault();ui.dropZone.classList.remove('dragging');openFile(event.dataTransfer?.files?.[0])});
+  ui.colorBy.addEventListener('change',()=>viewer.setOptions({colorBy:ui.colorBy.value}));
+  ui.edges.addEventListener('change',()=>viewer.setOptions({edges:ui.edges.checked},{rebuild:false}));
+  ui.nodes.addEventListener('change',()=>viewer.setOptions({nodes:ui.nodes.checked},{rebuild:false}));
+  ui.extrude.addEventListener('change',()=>viewer.setOptions({extrude:ui.extrude.checked}));
+  ui.thicknessScale.addEventListener('input',()=>{ui.thicknessScaleOut.value=Number(ui.thicknessScale.value).toFixed(2);viewer.setOptions({thicknessScale:Number(ui.thicknessScale.value)})});
+  ui.opacity.addEventListener('input',()=>{ui.opacityOut.value=Number(ui.opacity.value).toFixed(2);viewer.setOptions({opacity:Number(ui.opacity.value)},{rebuild:false})});
+  ui.frontView.addEventListener('click',()=>viewer.setView('front'));ui.topView.addEventListener('click',()=>viewer.setView('top'));ui.sideView.addEventListener('click',()=>viewer.setView('side'));ui.isoView.addEventListener('click',()=>viewer.setView('iso'));ui.fitView.addEventListener('click',()=>viewer.fit());ui.resetSelection.addEventListener('click',()=>viewer.clearSelection());
+</script>
+</body>
+</html>

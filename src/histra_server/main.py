@@ -142,6 +142,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, "builder UI is disabled")
         return FileResponse(_STATIC_ROOT / "builder.html")
 
+    @app.get("/viewer", include_in_schema=False)
+    @app.get("/viewer/", include_in_schema=False)
+    def viewer_page():
+        if not settings.builder_ui_enabled:
+            raise HTTPException(404, "viewer UI is disabled")
+        return FileResponse(_STATIC_ROOT / "viewer.html")
+
     @app.get("/health/live")
     def live():
         return {
