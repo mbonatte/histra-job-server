@@ -7,7 +7,6 @@ from pathlib import Path
 
 class PackageCache:
     """Regenerable TTL cache. It is never an authoritative artifact store."""
-
     def __init__(self, root: Path, ttl_seconds: int):
         self.root = root
         self.ttl_seconds = ttl_seconds

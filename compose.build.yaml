@@ -1,0 +1,33 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: histra
+      POSTGRES_USER: histra
+      POSTGRES_PASSWORD: development-only
+    volumes:
+      - postgres_build_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U histra -d histra"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  api:
+    build:
+      context: ..
+      dockerfile: histra-job-server/Dockerfile
+    environment:
+      HISTRA_DATABASE_URL: postgresql+psycopg://histra:development-only@db:5432/histra
+      HISTRA_TEMPLATE_ROOT: /data/templates
+      HISTRA_PACKAGE_CACHE_ROOT: /tmp/histra-packages
+      HISTRA_API_TOKEN: development-token
+    ports:
+      - "8000:8000"
+    volumes:
+      - template_build_data:/data/templates
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_build_data:
+  template_build_data:

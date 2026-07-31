@@ -1,122 +1,82 @@
-# histra-job-server
+# HiStrA Job Server 1.1.0
 
-The authoritative control plane for the HiStrA distributed job system.
+HiStrA Job Server is the orchestration and authoring control plane for distributed HiStrA analyses.
 
-There is one unversioned API because this is the first production contract.
-See [`docs/system-architecture.md`](docs/system-architecture.md) for the complete
-three-repository lifecycle and design decisions. The
-package version is `1.0.0`; there are no legacy upload routes and no compatibility
-layer.
+Version 1.1.0 preserves the canonical v1 runner protocol and restores the two browser workflows required for engineering use:
 
-## Responsibilities
+- **Dashboard** (`/dashboard`) — queue, attempts, runners, provenance, logs, result JSON and automatically discovered numeric result curves.
+- **Builder** (`/builder`) — import official `.hrx`, verify byte-exact HRX→JOB→HRX round trips, render stored `Node`/`Quad` geometry, edit canonical JOB JSON, compile/download HRX, create scenario variants and submit batches.
 
-The Server persists:
+The browser interfaces call authenticated APIs. Enter the same bearer token configured as `HISTRA_API_TOKEN`; it is kept in browser session storage.
 
-- canonical JOB JSON and its SHA-256;
-- queue state, priority, retries, attempts, and leases;
-- package provenance: JOB, template, Builder, and generated HRX digests;
-- returned results, run metadata, failures, and logs.
-
-The Server does **not** persist generated HRX files. It imports
-`histra-job-builder`, compiles an HRX after a runner claims a JOB, and places the
-three-file ZIP in a regenerable TTL cache. Successful or failed attempts remove
-the cache entry. A missing entry can be regenerated and is accepted only when
-its manifest and HRX digest are identical to the original lease.
+## Architecture
 
 ```text
-POST /jobs
-    -> database stores canonical JOB
-
-POST /claims
-    -> Server invokes Builder in-process
-    -> temporary ZIP: manifest.json + job.json + model.hrx
-    -> lease begins only after compilation succeeds
-
-POST /jobs/{job}/attempts/{attempt}/results
-    -> validate identities and digests
-    -> persist result provenance
-    -> delete temporary ZIP
+Browser dashboard / Builder UI
+             │
+             ▼
+HiStrA Job Server 1.1 ───────── PostgreSQL
+             │                       │
+             ├── immutable HRX registry
+             ├── histra-job-builder 1.1 (in process)
+             └── deterministic attempt packages
+                                      ▲
+                                      │
+                                trusted runners
 ```
 
-## API
+Responsibilities:
 
-| Method | Path | Purpose |
-|---|---|---|
-| `POST` | `/jobs` | Validate and enqueue canonical JOB JSON |
-| `GET` | `/jobs` | List jobs; optional `?status=queued` |
-| `GET` | `/jobs/{job_id}` | Read a JOB, attempts, and result |
-| `POST` | `/jobs/{job_id}/cancel` | Cancel queued or leased work |
-| `POST` | `/runners/register` | Register or refresh a runner identity |
-| `POST` | `/claims` | Compile and lease the next queued JOB |
-| `GET` | `/jobs/{job}/attempts/{attempt}/package` | Download the leased package |
-| `POST` | `/jobs/{job}/attempts/{attempt}/heartbeat` | Extend a lease |
-| `POST` | `/jobs/{job}/attempts/{attempt}/results` | Commit verified results |
-| `POST` | `/jobs/{job}/attempts/{attempt}/failed` | Record failure and retry if allowed |
-| `GET` | `/health/live` | Process liveness |
-| `GET` | `/health/ready` | Database/template readiness |
+- `histra-job-builder` owns HRX import, validation, preview extraction, JOB compilation and variant generation.
+- `histra-job-server` owns HTTP APIs, jobs, attempts, leases, runners, results, dashboard and the browser authoring workflow.
+- `histra-job-runner` remains responsible for executing a claimed package with the selected solver backend.
 
-`POST /jobs` is idempotent. Repeating the same ID and canonical content returns
-the existing JOB; reusing the ID for different content returns `409 Conflict`.
-Scheduling properties are server metadata:
+## Production deployment
+
+Create `.env` from `.env.example`, then:
 
 ```bash
-curl -X POST 'http://localhost:8000/jobs?priority=10&max_attempts=3' \
-  -H 'Content-Type: application/json' \
-  --data @job.json
+docker network inspect proxy >/dev/null 2>&1 || docker network create proxy
+docker compose pull
+docker compose up -d
+docker compose logs -f api
 ```
 
-## Package manifest
+Open:
 
-```json
-{
-  "protocol_version": "1.0",
-  "job_id": "campaign-a-0001",
-  "attempt_id": "...",
-  "job_sha256": "...",
-  "hrx": {
-    "path": "models/campaign-a-0001.hrx",
-    "sha256": "...",
-    "size_bytes": 12345
-  },
-  "builder": {
-    "builder_version": "1.0.0",
-    "template_id": "bridge-base-v1",
-    "template_sha256": "...",
-    "hrx_sha256": "..."
-  }
-}
+- `https://your-host/dashboard`
+- `https://your-host/builder`
+- `https://your-host/docs`
+
+The template volume must be writable by the API because importing an official HRX registers it as an immutable template. Existing IDs cannot be overwritten with different bytes.
+
+## Local source build
+
+Clone this repository and `histra-job-builder` as sibling directories:
+
+```text
+workspace/
+├── histra-job-builder/
+└── histra-job-server/
 ```
 
-The Runner must reject any identity or digest mismatch.
-
-## Configuration
-
-See `.env.example`. Set `HISTRA_API_TOKEN` in every non-isolated deployment and
-put TLS at the reverse proxy. The bearer token is intentionally simple; a later
-security release can add per-runner credentials without changing the JOB model.
-
-For production, use PostgreSQL and mount the template registry read-only. The
-package cache may be a local ephemeral volume because it is never authoritative.
-
-## Local development
-
-From a directory containing the Builder and Server repositories as siblings:
+Then run:
 
 ```bash
-python -m pip install -e ../histra-job-builder
-python -m pip install -e '.[test]'
-pytest
-histra-server --reload
+docker compose -f compose.build.yaml up --build
 ```
 
-## Docker Compose
+## Upgrade from v1.0.x
 
-Run from this repository:
+No database schema change is required. Keep the existing PostgreSQL volume, add the persistent template volume, update environment names shown in `.env.example`, pull v1.1.0 and recreate the API container.
+
+Do not use `docker compose down -v` during the upgrade.
+
+## Verification
 
 ```bash
-docker compose up --build
+curl https://your-host/health/ready
+curl -H "Authorization: Bearer $HISTRA_API_TOKEN" https://your-host/api/ui/dashboard/summary
 ```
 
-The Docker build context is the parent directory so the pinned sibling Builder
-package is installed into the Server image. Edit the two source directories in
-`Dockerfile` if your checkout names differ.
+For each imported HRX, the Builder UI reports whether the initial no-patch round trip is byte-for-byte exact. A failure is treated as an engineering issue and should be investigated before generating scenarios.

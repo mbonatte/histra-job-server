@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -43,3 +41,16 @@ class FailureUpload(BaseModel):
     message: str = Field(min_length=1, max_length=4000)
     details: dict[str, Any] = Field(default_factory=dict)
     logs: str = ""
+
+
+class VariantBatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    base_job: dict[str, Any]
+    variants: dict[str, Any]
+
+
+class SubmitBatchRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    jobs: list[dict[str, Any]] = Field(min_length=1, max_length=10000)
+    priority: int = Field(default=0, ge=-1000, le=1000)
+    max_attempts: int | None = Field(default=None, ge=1, le=100)

@@ -1,9 +1,16 @@
 # Changelog
 
-## 1.0.0 - 2026-07-30
+## 1.1.0 - 2026-07-31
 
-- Replaced all experimental API generations with one canonical JOB API.
-- Removed HRX upload and persistent generated-model storage.
-- Embedded Builder as an in-process compiler package.
-- Added deterministic package regeneration, leases, retries, provenance, auth,
-  and comprehensive API tests.
+- Restore an integrated web dashboard for jobs, attempts, runners, logs, results and numeric curves.
+- Add an integrated Builder UI for official HRX import, canonical JOB editing, geometry preview, HRX compilation and batch submission.
+- Add immutable runtime HRX template registration and listing APIs.
+- Add byte-for-byte HRX import round-trip verification.
+- Add JSON Pointer scenario variants and atomic batch submission.
+- Preserve all v1.0 runner protocol endpoints and package format.
+- Fix the container startup command to use `histra-server` / `histra_server.main:app`.
+- Add deployment health checks and persistent template storage.
+
+## 1.0.4 - 2026-07-31
+
+- Previous canonical API release.

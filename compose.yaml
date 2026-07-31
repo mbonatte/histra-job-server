@@ -1,35 +1,64 @@
 services:
   db:
-    image: postgres:17
+    image: postgres:17-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: histra
-      POSTGRES_USER: histra
-      POSTGRES_PASSWORD: histra
+      POSTGRES_DB: ${POSTGRES_DB:-histra}
+      POSTGRES_USER: ${POSTGRES_USER:-histra}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U histra"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-histra} -d ${POSTGRES_DB:-histra}"]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 10s
 
-  server:
-    build:
-      context: ..
-      dockerfile: histra-job-server/Dockerfile
-    env_file: .env
+  api:
+    image: ${HISTRA_SERVER_IMAGE:-ghcr.io/mbonatte/histra-job-server:1.1.0}
+    pull_policy: always
+    restart: unless-stopped
+    environment:
+      HISTRA_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-histra}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-histra}
+      HISTRA_TEMPLATE_ROOT: /data/templates
+      HISTRA_PACKAGE_CACHE_ROOT: /tmp/histra-packages
+      HISTRA_API_TOKEN: ${HISTRA_API_TOKEN:?Set HISTRA_API_TOKEN in .env}
+      HISTRA_LEASE_SECONDS: ${HISTRA_LEASE_SECONDS:-900}
+      HISTRA_PACKAGE_TTL_SECONDS: ${HISTRA_PACKAGE_TTL_SECONDS:-3600}
+      HISTRA_DEFAULT_MAX_ATTEMPTS: ${HISTRA_DEFAULT_MAX_ATTEMPTS:-3}
+      HISTRA_DASHBOARD_ENABLED: ${HISTRA_DASHBOARD_ENABLED:-true}
+      HISTRA_BUILDER_UI_ENABLED: ${HISTRA_BUILDER_UI_ENABLED:-true}
+      HISTRA_RUNNER_ONLINE_SECONDS: ${HISTRA_RUNNER_ONLINE_SECONDS:-300}
+      HISTRA_MAX_HRX_UPLOAD_BYTES: ${HISTRA_MAX_HRX_UPLOAD_BYTES:-104857600}
+      HISTRA_UI_REFRESH_SECONDS: ${HISTRA_UI_REFRESH_SECONDS:-5}
+    expose:
+      - "8000"
+    networks:
+      default:
+      proxy:
+        aliases:
+          - histra-api
+    volumes:
+      - template_data:/data/templates
+    tmpfs:
+      - /tmp:size=2g,mode=1770
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready')"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./templates:/data/templates:ro
-      - package-cache:/tmp/histra-packages
-    read_only: true
-    tmpfs:
-      - /tmp
+        restart: true
 
 volumes:
-  postgres-data:
-  package-cache:
+  postgres_data:
+  template_data:
+
+networks:
+  default:
+  proxy:
+    external: true

@@ -2,10 +2,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
-
 from sqlalchemy import DateTime, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from .db import Base
 
 
@@ -15,7 +13,6 @@ def utcnow() -> datetime:
 
 class Job(Base):
     __tablename__ = "jobs"
-
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     document: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     job_sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
@@ -27,7 +24,6 @@ class Job(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
     attempts: Mapped[list["Attempt"]] = relationship(
         back_populates="job", cascade="all, delete-orphan", order_by="Attempt.sequence"
     )
@@ -35,7 +31,6 @@ class Job(Base):
 
 class Runner(Base):
     __tablename__ = "runners"
-
     id: Mapped[str] = mapped_column(String(128), primary_key=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     version: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -46,7 +41,6 @@ class Runner(Base):
 
 class Attempt(Base):
     __tablename__ = "attempts"
-
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     job_id: Mapped[str] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
     runner_id: Mapped[str] = mapped_column(ForeignKey("runners.id"), index=True)
@@ -62,5 +56,4 @@ class Attempt(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-
     job: Mapped[Job] = relationship(back_populates="attempts")

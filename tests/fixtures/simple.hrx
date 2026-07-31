@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RailBridge version="2024.1.1" WizardType="Bridge">
+  <Node Key="1" Point="0;0;0"/><Node Key="2" Point="1;0;0"/><Node Key="3" Point="1;0;1"/><Node Key="4" Point="0;0;1"/>
+  <Quad Key="1" NodeKey1="1" NodeKey2="2" NodeKey3="3" NodeKey4="4" MaterialKey="1" LayerKey="1" ParentKey="1" ParentTypeElement="Arch" Thickness1="0.2" Thickness2="0.2" Thickness3="0.2" Thickness4="0.2"/>
+</RailBridge>

@@ -3,11 +3,10 @@ __pycache__/
 .pytest_cache/
 .coverage
 htmlcov/
-.venv/
-dist/
-build/
 *.egg-info/
-*.db
-.package-cache/
+build/
+dist/
+.venv/
 .env
-templates/*.hrx
+*.db
+*.sqlite*
