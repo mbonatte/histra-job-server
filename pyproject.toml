@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "histra-job-server"
-version = "1.1.0"
+version = "1.2.0"
 description = "Canonical HiStrA job server with dashboard and HRX/JOB builder UI"
 readme = "README.md"
 requires-python = ">=3.11"
 authors = [{name = "Maurício Bonatte"}]
 dependencies = [
   "fastapi>=0.115",
-  "histra-job-builder==1.1.0",
+  "histra-job-builder>=1.2.0",
   "pydantic>=2.7",
   "python-multipart>=0.0.9",
   "sqlalchemy>=2.0",

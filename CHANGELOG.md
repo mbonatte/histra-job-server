@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0 - 2026-09-21
+
+- Support batch ingestion and execution of parametric bridge portfolios from histra-job-builder 1.2.0.
+- Persist structured numerical result curves (reactions, displacements, convergence metrics) for multi-stage scour scenarios.
+- Add multi-tier end-to-end integration test suite (Tiers 1-4) verifying complete Server -> Builder -> Runner -> Solver pipeline.
+- Bump histra-job-builder dependency to >=1.2.0.
+
 ## 1.1.0 - 2026-07-31
 
 - Restore an integrated web dashboard for jobs, attempts, runners, logs, results and numeric curves.
