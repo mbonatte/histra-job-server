@@ -69,6 +69,14 @@
       <input id="fileInput" type="file" accept=".hrx,.xml,.txt,text/xml,application/xml,text/plain">
 
       <section class="section">
+        <div class="section-title">Presets</div>
+        <div class="button-grid">
+          <button id="btnBridge" type="button">2-Span Bridge</button>
+          <button id="btnPier" type="button">Isolated Pier</button>
+        </div>
+      </section>
+
+      <section class="section">
         <div class="section-title">Display</div>
         <div class="field"><label for="colorBy"><span>Color by</span></label><select id="colorBy">
           <option value="material">Material</option><option value="layer">Layer</option><option value="parent">Parent</option><option value="thickness">Thickness</option><option value="quad">Quad key</option><option value="single">Single color</option>
@@ -123,6 +131,30 @@
   ui.thicknessScale.addEventListener('input',()=>{ui.thicknessScaleOut.value=Number(ui.thicknessScale.value).toFixed(2);viewer.setOptions({thicknessScale:Number(ui.thicknessScale.value)})});
   ui.opacity.addEventListener('input',()=>{ui.opacityOut.value=Number(ui.opacity.value).toFixed(2);viewer.setOptions({opacity:Number(ui.opacity.value)},{rebuild:false})});
   ui.frontView.addEventListener('click',()=>viewer.setView('front'));ui.topView.addEventListener('click',()=>viewer.setView('top'));ui.sideView.addEventListener('click',()=>viewer.setView('side'));ui.isoView.addEventListener('click',()=>viewer.setView('iso'));ui.fitView.addEventListener('click',()=>viewer.fit());ui.resetSelection.addEventListener('click',()=>viewer.clearSelection());
+
+  async function loadModelByName(name){
+    if(!name)return;
+    showMessage(`Loading ${name}…`);
+    try{
+      const resp = await fetch(`/viewer/models/${encodeURIComponent(name)}`);
+      if(!resp.ok) throw new Error(`Failed to load ${name}: HTTP ${resp.status}`);
+      const text = await resp.text();
+      viewer.loadHrxText(text, name);
+      hideMessage();
+    }catch(error){
+      console.error(error);
+      showMessage(error instanceof Error ? error.message : String(error), true);
+    }
+  }
+
+  $('btnBridge')?.addEventListener('click', () => loadModelByName('two_span_bridge.hrx'));
+  $('btnPier')?.addEventListener('click', () => loadModelByName('isolated_pier.hrx'));
+
+  const params = new URLSearchParams(window.location.search);
+  const initialModel = params.get('model') ?? 'two_span_bridge.hrx';
+  if(initialModel) {
+    loadModelByName(initialModel);
+  }
 </script>
 </body>
 </html>

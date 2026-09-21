@@ -149,6 +149,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             raise HTTPException(404, "viewer UI is disabled")
         return FileResponse(_STATIC_ROOT / "viewer.html")
 
+    @app.get("/viewer/models/{model_name}", include_in_schema=False)
+    def viewer_model(model_name: str):
+        safe_name = Path(model_name).name
+        candidates = [
+            Path("/home/mauricio/coding/dmem_validation/pier_vs_bridge") / safe_name,
+            settings.template_root / safe_name,
+        ]
+        for p in candidates:
+            if p.is_file():
+                return FileResponse(p, media_type="application/xml")
+        raise HTTPException(404, f"Model '{safe_name}' not found")
+
     @app.get("/health/live")
     def live():
         return {
